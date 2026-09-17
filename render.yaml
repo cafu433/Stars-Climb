@@ -1,0 +1,42 @@
+# Cómo se despliega Stars Climb en Render.
+#
+# Un solo servicio para todo: sirve la aplicación (web/) y atiende /api/. No es
+# por ahorrar —aunque el plan gratuito da uno solo—, es porque siendo la misma
+# dirección la cookie de sesión viaja sola, no hace falta configurar CORS y no
+# hay dos direcciones que mantener en sintonía.
+#
+# La base de datos NO está acá: es Neon, que se crea aparte y se conecta pegando
+# su cadena en la variable DATABASE_URL del panel de Render.
+
+services:
+  - type: web
+    name: stars-climb
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60
+
+    # Render reinicia el servicio si esto deja de responder. /healthz contesta
+    # sin tocar la base a propósito: un mal momento de Neon no debe convertirse
+    # en la aplicación caída.
+    healthCheckPath: /healthz
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+      - key: FLASK_ENV
+        value: production
+
+      # Firma la cookie de sesión. Render la genera solo y no la muestra: si
+      # alguna vez se cambia, todo el mundo tiene que volver a entrar.
+      - key: SECRET_KEY
+        generateValue: true
+
+      # La cadena de conexión de Neon. sync: false significa "la pego yo a mano
+      # en el panel": así no queda escrita en el repositorio.
+      - key: DATABASE_URL
+        sync: false
