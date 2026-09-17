@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# La base de pruebas local, cuando se corre sin Neon.
+*.db
+
+.DS_Store
+.env
+stars-climb-una-pagina.html

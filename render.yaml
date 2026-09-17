@@ -40,3 +40,16 @@ services:
       # en el panel": así no queda escrita en el repositorio.
       - key: DATABASE_URL
         sync: false
+
+      # El tutor de conversación, que es lo único que cuesta dinero. Es
+      # OPCIONAL: sin esta clave la aplicación funciona entera y sólo esa
+      # pantalla dice que falta configurarla. La clave se saca en
+      # console.anthropic.com y se pega acá en el panel de Render, nunca en el
+      # repositorio y nunca en el teléfono.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Cuántos mensajes al día puede mandarle cada persona al tutor. Es el
+      # freno de gasto: sin tope, un bucle en el cliente se come el crédito.
+      - key: TUTOR_TOPE_DIARIO
+        value: "60"

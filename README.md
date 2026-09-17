@@ -3,14 +3,28 @@
 Una aplicación para aprender inglés. Se abre en el navegador, se instala en el
 teléfono como cualquier otra app, y sigue funcionando en el metro sin señal.
 
-- **Camino de lecciones** con vidas, rachas, XP y logros.
+- **Tres niveles** con el marco europeo: Básico (A1–A2), Intermedio (B1),
+  Avanzado (B2). 83 lecciones, y un **examen final** por nivel que abre el
+  siguiente.
+- **Reglas**: 17 reglas del inglés en el formato de los libros de gramática —la
+  regla explicada corta, y después ejercicios de esa regla y de ninguna otra.
+  Los ejercicios se generan, así que no se acaban: *am/is/are* da 120 frases
+  distintas, *do/does* 320. Al fallar sale la respuesta **y el porqué**.
+- **Prueba de nivelación** al entrar, para no empezar en "Hola" si ya sabes.
 - **Repaso espaciado** (el mismo algoritmo de Anki): cada palabra vuelve justo
   antes de que se te olvide, no antes ni después.
-- **Módulo de verbos**: 102 verbos, 8 tiempos, con las conjugaciones generadas
-  y comprobadas una por una.
-- **Módulo de pronunciación**: los 20 sonidos vocálicos del inglés con pares
-  mínimos (*ship* / *sheep*), porque son los que no se distinguen de oído.
-- **Gramática**: 17 temas explicados con la trampa típica de cada uno.
+- **Verbos**: 102 verbos, 8 tiempos, con las conjugaciones generadas y
+  comprobadas una por una.
+- **Pronunciación**: los 20 sonidos vocálicos del inglés con pares mínimos
+  (*ship* / *sheep*), porque son los que no se distinguen de oído.
+- **Lectura**: 9 textos con glosario y preguntas, de 82 palabras en básico a
+  161 en avanzado.
+- **Toca cualquier palabra** y ves qué significa, de qué verbo viene y cómo
+  suena. Funciona sin internet.
+- **Conversar con un tutor**, hablando o escribiendo, que te corrige y te
+  explica por qué. Es lo único que necesita internet y lo único que cuesta
+  dinero: es opcional y se configura aparte (ver más abajo).
+- **Gramática de consulta**: 19 temas con la trampa típica de cada uno.
 - **Pelusa**, una chinchilla que comenta cómo te va.
 
 La cuenta es opcional. Sin cuenta, todo el avance se guarda en el aparato y la
@@ -81,6 +95,37 @@ Queda con su icono, sin barra de direcciones, y abre sin internet.
 
 ---
 
+## El tutor de conversación (opcional, y es lo único que se paga)
+
+Todo lo demás de Stars Climb es gratis y funciona sin internet. El tutor no:
+usa un modelo de lenguaje, y eso se cobra por uso. Sin configurarlo, la
+aplicación funciona entera y sólo esa pantalla explica que falta activarlo.
+
+Para encenderlo:
+
+1. Saca una clave en <https://console.anthropic.com> y ponle algo de crédito.
+2. En Render, tu servicio → **Environment** → agrega `ANTHROPIC_API_KEY`.
+
+Dos cosas importantes:
+
+- **La clave se queda en el servidor y nunca llega al teléfono.** Si estuviera
+  en el JavaScript, cualquiera que abra el inspector la copia y gasta tu
+  crédito. Por eso `/api/tutor` es un intermediario y no una llamada directa
+  desde el navegador.
+- **Hay un tope de mensajes al día por persona** (`TUTOR_TOPE_DIARIO`, 60 por
+  defecto). Sin tope, un bucle en el cliente o una sesión robada se comen el
+  crédito de un mes en una tarde.
+
+El modelo por defecto es Haiku, que para conversar y corregir errores rinde de
+sobra, contesta rápido y cuesta una fracción de los grandes. Se cambia con
+`TUTOR_MODELO`.
+
+El servidor **no guarda la conversación**: la manda el teléfono en cada turno y
+se queda ahí. Alguien practicando cuenta cosas de su trabajo y de su vida, y
+eso no hay por qué archivarlo.
+
+---
+
 ## Trabajar en ella
 
 ```bash
@@ -95,8 +140,8 @@ ninguna para probar.
 ### Las pruebas
 
 ```bash
-node pruebas/pruebas.js   # la lógica de la aplicación (79)
-python3 -m pytest pruebas/ -q   # el servidor (31)
+node pruebas/pruebas.js         # la lógica de la aplicación (106)
+python3 -m pytest pruebas/ -q   # el servidor (43)
 ```
 
 Las de `node` no necesitan navegador: cargan los mismos archivos que usa la
@@ -108,10 +153,16 @@ aplicación en un contexto fingido, sin copiarlos ni adaptarlos.
 web/     La aplicación. JavaScript suelto, sin framework ni compilación:
          se abre tal cual, y en un teléfono de gama media eso se nota.
   js/    Un archivo por tema, todos registrados en window.APP.
+         Los datos-*.js son contenido; el resto, lógica.
   sw.js  El service worker (lo que la hace funcionar sin internet).
-api/     Flask. Cuentas y progreso, nada más.
+api/     Flask. Cuentas, progreso y el intermediario del tutor.
 pruebas/ Las de la aplicación (node) y las del servidor (pytest).
 ```
+
+Al agregar un archivo nuevo a `web/js/` hay que ponerlo en **tres** sitios:
+`web/index.html`, la lista de `web/sw.js`, y `ARCHIVOS` en
+`pruebas/pruebas.js`. Si falta en el service worker, la aplicación funciona con
+internet y se rompe sin él, que es la peor forma de romperse.
 
 ### Dos cosas que conviene saber antes de tocar nada
 
