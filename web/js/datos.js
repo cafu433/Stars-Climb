@@ -550,6 +550,60 @@
     { en: "I am bored at home.", es: "Estoy aburrida en la casa.", skill: "inged", nivel: 2 },
     { en: "The trip was exciting.", es: "El viaje fue emocionante.", skill: "inged", nivel: 3 },
     { en: "I am interested in this job.", es: "Estoy interesada en este trabajo.", skill: "inged", nivel: 3 },
+
+    // --- Phrasal verbs ---
+    { en: "I am looking for the invoice.", es: "Estoy buscando la factura.", skill: "phrasal", nivel: 2 },
+    { en: "I will find out and let you know.", es: "Voy a averiguar y te aviso.", skill: "phrasal", nivel: 2 },
+    { en: "We ran out of time.", es: "Se nos acabó el tiempo.", skill: "phrasal", nivel: 2 },
+    { en: "Let's go through the numbers.", es: "Revisemos los números.", skill: "phrasal", nivel: 2 },
+    { en: "I will follow up on Monday.", es: "Le hago seguimiento el lunes.", skill: "phrasal", nivel: 2 },
+    { en: "She took over the project last year.", es: "Ella se hizo cargo del proyecto el año pasado.", skill: "phrasal", nivel: 3 },
+    { en: "They turned down our offer.", es: "Rechazaron nuestra oferta.", skill: "phrasal", nivel: 3 },
+    { en: "We had to put off the meeting.", es: "Tuvimos que postergar la reunión.", skill: "phrasal", nivel: 3 },
+    { en: "He pointed out a mistake in the report.", es: "Él señaló un error en el informe.", skill: "phrasal", nivel: 3 },
+    { en: "I deal with suppliers every day.", es: "Trato con proveedores todos los días.", skill: "phrasal", nivel: 2 },
+    { en: "Who is going to take care of this?", es: "¿Quién se va a encargar de esto?", skill: "phrasal", nivel: 2 },
+    { en: "She came up with a better idea.", es: "A ella se le ocurrió una idea mejor.", skill: "phrasal", nivel: 3 },
+    { en: "We need to sort this out today.", es: "Necesitamos arreglar esto hoy.", skill: "phrasal", nivel: 3 },
+    { en: "I am catching up on my emails.", es: "Me estoy poniendo al día con los correos.", skill: "phrasal", nivel: 3 },
+
+    // --- Conectores ---
+    { en: "The price is good. However, the delivery is slow.", es: "El precio es bueno. Sin embargo, la entrega es lenta.", skill: "conectores", nivel: 2 },
+    { en: "Although it was expensive, we bought it.", es: "Aunque era caro, lo compramos.", skill: "conectores", nivel: 3 },
+    { en: "The invoice was wrong, so we did not pay it.", es: "La factura estaba mala, así que no la pagamos.", skill: "conectores", nivel: 2 },
+    { en: "We were late because of the traffic.", es: "Llegamos tarde debido al tráfico.", skill: "conectores", nivel: 2 },
+    { en: "In addition, we need two more copies.", es: "Además, necesitamos dos copias más.", skill: "conectores", nivel: 2 },
+    { en: "Let's call instead of writing.", es: "Llamemos en vez de escribir.", skill: "conectores", nivel: 2 },
+    { en: "I will send it as soon as I know.", es: "Lo envío apenas sepa.", skill: "conectores", nivel: 3 },
+    { en: "We cannot start unless they confirm.", es: "No podemos empezar a menos que confirmen.", skill: "conectores", nivel: 3 },
+    { en: "Actually, the meeting is on Thursday.", es: "En realidad, la reunión es el jueves.", skill: "conectores", nivel: 2 },
+    { en: "She is currently working on the budget.", es: "Ella está trabajando actualmente en el presupuesto.", skill: "conectores", nivel: 3 },
+    { en: "The costs went up. Therefore, we changed supplier.", es: "Los costos subieron. Por lo tanto, cambiamos de proveedor.", skill: "conectores", nivel: 3 },
+    { en: "On the other hand, the quality is better.", es: "Por otro lado, la calidad es mejor.", skill: "conectores", nivel: 3 },
+
+    // --- Expresiones ---
+    { en: "We have to make a decision today.", es: "Tenemos que tomar una decisión hoy.", skill: "expresiones", nivel: 2 },
+    { en: "I made a mistake in the invoice.", es: "Cometí un error en la factura.", skill: "expresiones", nivel: 2 },
+    { en: "Please keep in mind that we close at five.", es: "Por favor ten en cuenta que cerramos a las cinco.", skill: "expresiones", nivel: 3 },
+    { en: "We should take the delivery time into account.", es: "Deberíamos tomar en cuenta el tiempo de entrega.", skill: "expresiones", nivel: 3 },
+    { en: "Let me know if you need anything.", es: "Avísame si necesitas algo.", skill: "expresiones", nivel: 2 },
+    { en: "It depends on the supplier.", es: "Depende del proveedor.", skill: "expresiones", nivel: 2 },
+    { en: "I am looking forward to meeting you.", es: "Tengo ganas de conocerte.", skill: "expresiones", nivel: 3 },
+    { en: "I would rather wait until Monday.", es: "Preferiría esperar hasta el lunes.", skill: "expresiones", nivel: 3 },
+    { en: "I used to work in a bank.", es: "Yo trabajaba en un banco antes.", skill: "expresiones", nivel: 3 },
+    { en: "By the way, did you send the report?", es: "Por cierto, ¿enviaste el informe?", skill: "expresiones", nivel: 2 },
+    { en: "As far as I know, it has been paid.", es: "Hasta donde yo sé, ya fue pagada.", skill: "expresiones", nivel: 3 },
+    { en: "She did it on purpose.", es: "Ella lo hizo a propósito.", skill: "expresiones", nivel: 2 },
+
+    // --- Oficina, nivel avanzado ---
+    { en: "The invoice was paid twice by mistake.", es: "La factura se pagó dos veces por error.", skill: "oficina", nivel: 3 },
+    { en: "Could you send me a quote before Friday?", es: "¿Me podrías enviar una cotización antes del viernes?", skill: "oficina", nivel: 3 },
+    { en: "The payment has already been approved.", es: "El pago ya fue aprobado.", skill: "oficina", nivel: 3 },
+    { en: "We are still waiting for their confirmation.", es: "Todavía estamos esperando su confirmación.", skill: "oficina", nivel: 3 },
+    { en: "If the price rises, we will look for another supplier.", es: "Si el precio sube, buscaremos otro proveedor.", skill: "oficina", nivel: 3 },
+    { en: "I would have called you, but the line was busy.", es: "Te habría llamado, pero la línea estaba ocupada.", skill: "oficina", nivel: 3 },
+    { en: "The report needs to be reviewed before Monday.", es: "El informe necesita ser revisado antes del lunes.", skill: "oficina", nivel: 3 },
+    { en: "Let me check and get back to you.", es: "Déjame revisar y te respondo.", skill: "trabajo", nivel: 2 },
   ];
 
   /* Complemento natural de cada verbo, para los ejercicios de conjugar.
@@ -575,6 +629,87 @@
     v.obj = COMPLEMENTOS[v.base] || "";
   });
 
+
+  /* ---------------- Contenido de intermedio y avanzado ----------------
+   *
+   * Lo que frena a un hispanohablante en B1 no es que le falten sustantivos:
+   * es que traduce estructuras. Estas tres listas son justamente las que no se
+   * pueden deducir del español —hay que aprenderlas— y las que más cambian
+   * cómo suena alguien cuando habla.
+   */
+
+  // Phrasal verbs: el verbo cambia de significado según la preposición, y no
+  // hay ninguna lógica que ayude. "Look for" es buscar y "look after" es
+  // cuidar, y nada en "look" lo anticipa.
+  const PHRASAL = [
+    { en: "look for", es: "buscar", icon: "🔎", note: "I'm looking for the invoice." },
+    { en: "look after", es: "cuidar", icon: "🧡", note: "She looks after her mother." },
+    { en: "find out", es: "averiguar", icon: "🕵️", note: "I'll find out and call you." },
+    { en: "carry out", es: "llevar a cabo, realizar", icon: "⚙️", note: "We carried out the audit." },
+    { en: "point out", es: "señalar, hacer notar", icon: "☝️", note: "He pointed out the error." },
+    { en: "follow up", es: "hacer seguimiento", icon: "📌", note: "I'll follow up on Monday." },
+    { en: "set up", es: "montar, establecer", icon: "🛠️", note: "We set up a new account." },
+    { en: "give up", es: "rendirse, dejar de", icon: "🏳️", note: "Don't give up." },
+    { en: "take over", es: "hacerse cargo", icon: "🔁", note: "She took over the project." },
+    { en: "turn down", es: "rechazar", icon: "👎", note: "They turned down our offer." },
+    { en: "put off", es: "postergar", icon: "🗓️", note: "We put off the meeting." },
+    { en: "bring up", es: "mencionar, sacar un tema", icon: "💬", note: "He brought up the budget." },
+    { en: "work out", es: "resultar, resolverse", icon: "✅", note: "It worked out well." },
+    { en: "deal with", es: "lidiar con, ocuparse de", icon: "🤝", note: "I deal with suppliers." },
+    { en: "come up with", es: "ocurrírsele, idear", icon: "💡", note: "She came up with a plan." },
+    { en: "run out of", es: "quedarse sin", icon: "🪫", note: "We ran out of time." },
+    { en: "catch up", es: "ponerse al día", icon: "🏃", note: "I need to catch up on emails." },
+    { en: "sort out", es: "arreglar, ordenar", icon: "🧹", note: "Let's sort this out today." },
+    { en: "go through", es: "revisar en detalle", icon: "📄", note: "Let's go through the numbers." },
+    { en: "deal out", es: "repartir", icon: "🃏", note: "menos común que 'deal with'" },
+  ];
+
+  // Conectores: son la diferencia entre sonar a principiante y sonar a alguien
+  // que sabe. Una idea bien conectada vale más que diez palabras raras.
+  const CONECTORES = [
+    { en: "however", es: "sin embargo", icon: "↔️", note: "va al principio, con coma" },
+    { en: "although", es: "aunque", icon: "🔀", note: "Although it rained, we went." },
+    { en: "therefore", es: "por lo tanto", icon: "➡️", note: "formal" },
+    { en: "so", es: "así que", icon: "👉", note: "la versión de todos los días" },
+    { en: "because of", es: "debido a", icon: "📌", note: "seguido de sustantivo: because of the rain" },
+    { en: "because", es: "porque", icon: "❓", note: "seguido de frase: because it rained" },
+    { en: "in addition", es: "además", icon: "➕", note: "" },
+    { en: "besides", es: "además, aparte", icon: "🧩", note: "más informal que 'in addition'" },
+    { en: "instead of", es: "en vez de", icon: "🔄", note: "instead of going" },
+    { en: "as well as", es: "así como, además de", icon: "🤝", note: "" },
+    { en: "on the other hand", es: "por otro lado", icon: "🖐️", note: "" },
+    { en: "in fact", es: "de hecho", icon: "💬", note: "" },
+    { en: "actually", es: "en realidad", icon: "⚠️", note: "falso amigo: NO significa 'actualmente'" },
+    { en: "currently", es: "actualmente", icon: "🕐", note: "ésta sí es 'actualmente'" },
+    { en: "meanwhile", es: "mientras tanto", icon: "⏳", note: "" },
+    { en: "unless", es: "a menos que", icon: "🚧", note: "unless you pay" },
+    { en: "whereas", es: "mientras que (contraste)", icon: "⚖️", note: "formal" },
+    { en: "as soon as", es: "apenas, en cuanto", icon: "⚡", note: "as soon as I know" },
+  ];
+
+  // Combinaciones fijas: el verbo correcto no se puede adivinar traduciendo.
+  // En español "tomamos una decisión"; en inglés se hace, no se toma.
+  const EXPRESIONES = [
+    { en: "make a decision", es: "tomar una decisión", icon: "🧠", note: "hacer, no tomar" },
+    { en: "take a decision", es: "tomar una decisión (BrE, menos común)", icon: "🧠", note: "se oye en inglés británico" },
+    { en: "make a mistake", es: "cometer un error", icon: "❌", note: "nunca 'do a mistake'" },
+    { en: "do business", es: "hacer negocios", icon: "🤝", note: "" },
+    { en: "do me a favour", es: "hacerme un favor", icon: "🙏", note: "ortografía británica" },
+    { en: "take care of", es: "encargarse de", icon: "🧡", note: "" },
+    { en: "pay attention", es: "prestar atención", icon: "👀", note: "se paga, no se presta" },
+    { en: "keep in mind", es: "tener en cuenta", icon: "🧷", note: "" },
+    { en: "take into account", es: "tomar en cuenta", icon: "📊", note: "" },
+    { en: "on purpose", es: "a propósito, adrede", icon: "🎯", note: "" },
+    { en: "by the way", es: "por cierto", icon: "💭", note: "" },
+    { en: "as far as I know", es: "hasta donde yo sé", icon: "🔭", note: "" },
+    { en: "it depends on", es: "depende de", icon: "⚖️", note: "siempre con 'on'" },
+    { en: "I am looking forward to", es: "tengo ganas de, espero con gusto", icon: "🌟", note: "después va -ing: looking forward to seeing you" },
+    { en: "let me know", es: "avísame", icon: "📣", note: "" },
+    { en: "I would rather", es: "preferiría", icon: "🔀", note: "después va el verbo sin 'to'" },
+    { en: "used to", es: "solía", icon: "⏮️", note: "I used to work there" },
+    { en: "be about to", es: "estar a punto de", icon: "⏱️", note: "" },
+  ];
+
   /* Un "tema" agrupa palabras que se enseñan y se repasan juntas.
    * El id es la llave que usan el currículo y el repaso espaciado, así que no
    * hay que cambiarlo una vez publicado: es lo que amarra el progreso guardado
@@ -595,6 +730,9 @@
     { id: "transporte", label: "Transporte", icon: "🚌", items: TRANSPORT },
     { id: "casa", label: "Casa", icon: "🏠", items: HOUSE },
     { id: "emociones", label: "Emociones", icon: "😊", items: EMOTIONS },
+    { id: "phrasal", label: "Phrasal verbs", icon: "🧩", items: PHRASAL },
+    { id: "conectores", label: "Conectores", icon: "🔗", items: CONECTORES },
+    { id: "expresiones", label: "Expresiones", icon: "💬", items: EXPRESIONES },
   ];
 
   // Las frases del cuaderno original se suman al banco de oraciones: ya venían

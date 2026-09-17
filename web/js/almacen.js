@@ -45,6 +45,12 @@
     // Mejores marcas por modo de juego (el contrarreloj, por ahora). Van
     // aparte de los contadores porque no se suman: se superan.
     records: {},
+    // Dominio de cada regla de gramática. Va aparte del repaso espaciado porque
+    // no es lo mismo: una tarjeta se recuerda o no se recuerda, pero una regla
+    // se domina y entonces deja de necesitar opciones y se pasa a escribir.
+    reglas: {},
+    // Estado de cada nivel: si está abierto y cómo fue su examen final.
+    niveles: {},
     // El desafío del día: qué se lleva hecho hoy y si ya se cobró el premio.
     desafio: null,
     canciones: [],
@@ -435,6 +441,79 @@
     return totalContador(estado().contadores[clave]);
   }
 
+  /* ---------------- Reglas de gramática ---------------- */
+
+  // Cuántos aciertos seguidos hacen falta para pasar de elegir a escribir, y
+  // para dar la regla por dominada. Ocho y ocho: bastantes para que no sea
+  // suerte, pocos para que no aburra.
+  const PARA_ESCRIBIR = 8;
+  const PARA_DOMINAR = 16;
+
+  function regla(id) {
+    const r = estado().reglas[id];
+    return r || { vistos: 0, aciertos: 0, seguidos: 0, dominada: false, ultima: null };
+  }
+
+  /* En qué etapa está una regla:
+   *   0  recién empezada: se elige entre opciones
+   *   1  se entiende: ahora hay que escribirla, que es lo que de verdad la fija
+   *   2  dominada: sigue apareciendo en el repaso, pero ya no hace falta
+   *      dedicarle una tanda entera
+   */
+  function etapaRegla(id) {
+    const r = regla(id);
+    if (r.dominada) return 2;
+    return r.seguidos >= PARA_ESCRIBIR ? 1 : 0;
+  }
+
+  function anotarRegla(id, acierto) {
+    const e = estado();
+    const r = e.reglas[id] || { vistos: 0, aciertos: 0, seguidos: 0, dominada: false, ultima: null };
+    r.vistos += 1;
+    if (acierto) {
+      r.aciertos += 1;
+      r.seguidos += 1;
+      if (r.seguidos >= PARA_DOMINAR) r.dominada = true;
+    } else {
+      // Un fallo no borra el dominio, pero sí devuelve a la etapa anterior:
+      // si se falla escribiendo, conviene volver a verla unas cuantas veces.
+      r.seguidos = 0;
+    }
+    r.ultima = hoy();
+    e.reglas[id] = r;
+    guardar();
+    return r;
+  }
+
+  /* ---------------- Niveles y sus exámenes ---------------- */
+
+  function nivel_(id) {
+    const n = estado().niveles[id];
+    return n || { abierto: false, aprobado: false, mejor: 0, veces: 0, fecha: null };
+  }
+
+  function abrirNivel(id) {
+    const e = estado();
+    const n = e.niveles[id] || { abierto: false, aprobado: false, mejor: 0, veces: 0, fecha: null };
+    n.abierto = true;
+    e.niveles[id] = n;
+    guardar();
+  }
+
+  function anotarExamen(id, porcentaje, aprueba) {
+    const e = estado();
+    const n = e.niveles[id] || { abierto: true, aprobado: false, mejor: 0, veces: 0, fecha: null };
+    n.veces += 1;
+    n.mejor = Math.max(n.mejor || 0, porcentaje);
+    if (aprueba && !n.aprobado) {
+      n.aprobado = true;
+      n.fecha = hoy();
+    }
+    e.niveles[id] = n;
+    guardar();
+    return n;
+  }
+
   function anotarError(tarjetaId, dato) {
     const e = estado();
     const previo = e.errores.filter(function (x) { return x.id === tarjetaId; })[0];
@@ -568,6 +647,33 @@
         return x < y ? x : y;
       }),
 
+      /* El dominio de una regla no se pierde nunca: si en algún aparato quedó
+       * dominada, lo está. Los contadores se quedan con el mayor —pueden
+       * quedar cortos si se practicó en los dos, pero eso sólo desafina una
+       * estadística, mientras que perder el dominio devolvería a alguien a
+       * elegir entre opciones algo que ya escribe solo. */
+      reglas: fusionarPorLlave(a.reglas, b.reglas, function (x, y) {
+        return {
+          vistos: maximo(x.vistos, y.vistos),
+          aciertos: maximo(x.aciertos, y.aciertos),
+          seguidos: maximo(x.seguidos, y.seguidos),
+          dominada: !!(x.dominada || y.dominada),
+          ultima: maximo(x.ultima, y.ultima),
+        };
+      }),
+
+      // Un nivel aprobado tampoco se cierra de vuelta.
+      niveles: fusionarPorLlave(a.niveles, b.niveles, function (x, y) {
+        return {
+          abierto: !!(x.abierto || y.abierto),
+          aprobado: !!(x.aprobado || y.aprobado),
+          mejor: maximo(x.mejor, y.mejor),
+          veces: maximo(x.veces, y.veces),
+          // La fecha que se guarda es la de la primera vez que se aprobó.
+          fecha: x.fecha && y.fecha ? (x.fecha < y.fecha ? x.fecha : y.fecha) : x.fecha || y.fecha,
+        };
+      }),
+
       contadores: fusionarRepartidos(a.contadores, b.contadores),
       records: fusionarPorLlave(a.records, b.records, maximo),
       desafio: fusionarDesafio(a.desafio, b.desafio),
@@ -665,6 +771,14 @@
     siguienteLeccion: siguienteLeccion,
     contar: contar,
     cuenta: cuenta,
+    PARA_ESCRIBIR: PARA_ESCRIBIR,
+    PARA_DOMINAR: PARA_DOMINAR,
+    regla: regla,
+    etapaRegla: etapaRegla,
+    anotarRegla: anotarRegla,
+    nivelCurso: nivel_,
+    abrirNivel: abrirNivel,
+    anotarExamen: anotarExamen,
     record: record,
     mejorMarca: mejorMarca,
     anotarError: anotarError,

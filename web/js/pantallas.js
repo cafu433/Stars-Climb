@@ -14,6 +14,9 @@
   const d = APP.dom;
   const A = function () { return APP.almacen; };
   let tab = "camino";
+  // Una "vista" es una pantalla que se abre por encima de la pestaña y se
+  // cierra volviendo: Reglas, por ahora.
+  let vista = null;
   let raiz = null;
 
   function pintar() {
@@ -75,6 +78,8 @@
   }
 
   function contenido() {
+    if (vista === "reglas") return pantallaReglas();
+    if (vista === "tutor") return pantallaTutor();
     if (tab === "camino") return camino();
     if (tab === "practica") return practica();
     if (tab === "progreso") return progreso();
@@ -86,9 +91,92 @@
   function camino() {
     const siguiente = A().siguienteLeccion();
     const saludo = APP.mascota.saludo();
-    let out = APP.mascota.burbuja(saludo.cara, saludo.texto) + tarjetaDesafio();
-    APP.curriculo.UNIDADES.forEach(function (u) {
-      const hechas = u.lecciones.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+    let out = APP.mascota.burbuja(saludo.cara, saludo.texto) + tarjetaDesafio() + tarjetaNivelacion();
+
+    /* El camino va agrupado por nivel, y cada nivel cierra con su examen. Ver
+     * "Básico A1-A2" y qué se podrá hacer al terminarlo da una meta con
+     * sentido fuera de la aplicación; "unidad 7 de 21" no dice nada. */
+    APP.curriculo.NIVELES.forEach(function (n) {
+      out += cabeceraNivel(n);
+      if (!APP.examen.abierto(n.id)) return;
+      APP.curriculo.delNivel(n.id).forEach(function (u) { out += unidadEnCamino(u, siguiente); });
+      out += tarjetaExamen(n);
+    });
+    return out;
+  }
+
+  function cabeceraNivel(n) {
+    const abierto = APP.examen.abierto(n.id);
+    const est = A().nivelCurso(n.id);
+    const ls = APP.curriculo.leccionesDelNivel(n.id);
+    const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+
+    return (
+      '<div class="nivel-cabecera' + (abierto ? "" : " cerrado") + '" style="--c:' + n.color + '">' +
+      '<div class="nivel-emo">' + (abierto ? n.emo : "🔒") + "</div>" +
+      '<div class="nivel-txt">' +
+      "<h2>" + d.esc(n.titulo) + ' <span class="mcer">' + d.esc(n.mcer) + "</span>" +
+      (est.aprobado ? ' <span class="pastilla verde">aprobado</span>' : "") + "</h2>" +
+      '<div class="sub">' + d.esc(n.resumen) + "</div>" +
+      (abierto
+        ? '<div class="barra-prog fina" style="margin-top:8px"><i style="width:' +
+          Math.round((hechas / ls.length) * 100) + '%;background:' + n.color + '"></i></div>' +
+          '<div class="mini apagado">' + hechas + " de " + ls.length + " lecciones</div>"
+        : '<div class="mini apagado">Se abre al aprobar el nivel anterior' +
+          ', o con la prueba de nivel.</div>') +
+      "</div>" +
+      '<button class="btn hueco chico" data-accion="ver-nivel" data-id="' + n.id + '">Qué aprenderás</button>' +
+      "</div>"
+    );
+  }
+
+  function tarjetaExamen(n) {
+    const est = A().nivelCurso(n.id);
+    const ls = APP.curriculo.leccionesDelNivel(n.id);
+    const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+    /* No hace falta terminar el nivel entero para examinarse: con dos tercios
+     * ya se puede intentar. Obligar al 100% castiga a quien sabe y sólo quiere
+     * comprobarlo, que es justo a quien la prueba le ahorra más tiempo. */
+    const listo = hechas >= Math.ceil(ls.length * 0.66);
+
+    return (
+      '<div class="tarjeta examen-tarjeta' + (est.aprobado ? " aprobada" : "") + '">' +
+      '<div class="examen-emo">' + (est.aprobado ? "🎓" : "📝") + "</div>" +
+      "<h3>Examen de " + d.esc(n.titulo) + "</h3>" +
+      '<p class="chico apagado">Las cuatro destrezas: alternativas, escribir, escuchar y hablar. ' +
+      "Sin vidas y sin corregir sobre la marcha. Se aprueba con " + APP.examen.PARA_APROBAR + "%.</p>" +
+      (est.veces
+        ? '<div class="mini">Mejor nota: <b>' + est.mejor + "%</b> en " + est.veces +
+          (est.veces === 1 ? " intento" : " intentos") + "</div>"
+        : "") +
+      (listo
+        ? '<button class="btn" style="margin-top:10px" data-accion="examen" data-id="' + n.id + '">' +
+          (est.aprobado ? "Volver a rendirlo" : "Rendir el examen") + "</button>"
+        : '<div class="mini apagado" style="margin-top:10px">Te faltan ' +
+          (Math.ceil(ls.length * 0.66) - hechas) + " lecciones para poder rendirlo.</div>") +
+      "</div>"
+    );
+  }
+
+  function tarjetaNivelacion() {
+    // Sólo se ofrece mientras no haya avance: después estorba, porque ya se
+    // sabe dónde está.
+    const e = A().estado();
+    if (A().totalXp() > 200 || e.ajustes.nivelacionHecha) return "";
+    return (
+      '<div class="tarjeta destacada">' +
+      "<h3>¿Ya sabes algo de inglés?</h3>" +
+      '<p class="chico apagado">Quince preguntas y te dejo donde te corresponde, ' +
+      "en vez de hacerte empezar en “Hola”.</p>" +
+      '<button class="btn" data-accion="nivelacion">Hacer la prueba de nivel</button> ' +
+      '<button class="btn hueco chico" data-accion="saltar-nivelacion">Empezar desde cero</button>' +
+      "</div>"
+    );
+  }
+
+  function unidadEnCamino(u, siguiente) {
+    const hechas = u.lecciones.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+    let out = "";
       out +=
         '<div class="unidad-cabecera" style="background:' + u.color + '">' +
         '<span class="emo">' + u.icon + "</span>" +
@@ -117,7 +205,6 @@
           "</div></div>";
       });
       out += "</div>";
-    });
     return out;
   }
 
@@ -181,6 +268,8 @@
         ? errores + " cosas que has fallado"
         : "Todavía no fallas nada. Buena señal.", "errores", errores > 0) +
 
+      tarjetaAccion("💭", "Conversar", "Habla o escribe en inglés con un tutor que te corrige y te explica", "tutor", true) +
+      tarjetaAccion("🎯", "Reglas", "am/is/are, do/does, el -ed, el -ing: una regla y ejercicios hasta que salga sola", "reglas", true) +
       tarjetaAccion("📐", "Gramática", "Pronombres, verbos, artículos: cómo se arma el inglés", "gramatica", true) +
       tarjetaAccion("🔁", "Verbos", "Los 102 que más se usan, en todos los tiempos", "verbos", true) +
       tarjetaAccion("🗣️", "Pronunciación", "Los 20 sonidos de vocales, uno por uno", "sonidos", true) +
@@ -490,13 +579,15 @@
       avisoSinVidas();
       return;
     }
-    const ejercicios = filtrar(APP.motor.sesionLeccion(l));
-    APP.leccion.iniciar({
-      ejercicios: ejercicios,
-      titulo: l.titulo,
-      modo: "camino",
-      leccionId: l.id,
-      alTerminar: pintar,
+    claseAntesDe(l, function () {
+      const ejercicios = filtrar(APP.motor.sesionLeccion(l));
+      APP.leccion.iniciar({
+        ejercicios: ejercicios,
+        titulo: l.titulo,
+        modo: "camino",
+        leccionId: l.id,
+        alTerminar: pintar,
+      });
     });
   }
 
@@ -603,6 +694,80 @@
     return velo;
   }
 
+  /* ---------------- Tocar una palabra ----------------
+   *
+   * Aparece por encima de lo que sea que esté abierto —una lección, un texto,
+   * un examen— sin interrumpirlo: se mira y se cierra. Que no corte lo que se
+   * estaba haciendo es justo lo que hace que se use; si hubiera que salir y
+   * volver, se saltaría la palabra, que es lo que impide aprenderla.
+   */
+  function palabra(w) {
+    const f = APP.diccionario.ficha(w);
+    const limpia = APP.diccionario.limpiar(w);
+
+    let out = '<div class="palabra-cabecera">' +
+      "<h2>" + d.esc(limpia || w) + "</h2>" +
+      botonDecir(limpia || w) + "</div>";
+
+    if (!f.encontrada) {
+      /* Decirlo tal cual. Inventar una traducción sería peor que no dar
+       * ninguna: enseñaría algo falso con toda la confianza del mundo. */
+      out += '<p class="chico apagado">Esta palabra no está en el curso, así que no tengo su ' +
+        "traducción. Puedes oírla con el botón de arriba.</p>";
+    } else {
+      const def = f.definicion;
+      out += '<div class="definicion">' + d.esc(def.es) + "</div>";
+
+      const etiquetas = [];
+      if (def.clase) etiquetas.push(def.clase);
+      if (def.forma && def.forma !== "base") etiquetas.push(def.forma);
+      if (def.derivadaDe) etiquetas.push("de “" + def.derivadaDe + "”");
+      if (def.irregular) etiquetas.push("verbo irregular");
+      if (etiquetas.length) {
+        out += '<div class="etiquetas">' + etiquetas.map(function (e) {
+          return '<span class="pastilla">' + d.esc(e) + "</span>";
+        }).join("") + "</div>";
+      }
+
+      if (def.nota) out += '<div class="nota-palabra">💡 ' + d.esc(def.nota) + "</div>";
+
+      if (def.verbo && def.verbo !== limpia) {
+        out += '<button class="btn hueco chico" style="margin-top:10px" ' +
+          'data-accion="ver-verbo" data-id="' + d.esc(def.verbo) + '">' +
+          "Ver “" + d.esc(def.verbo) + "” en todos los tiempos</button>";
+      }
+    }
+
+    if (f.expresiones.length) {
+      out += '<div class="mini apagado" style="margin-top:16px">Con esta palabra</div>';
+      f.expresiones.forEach(function (e) {
+        out += '<div class="glosa"><b>' + d.esc(e.en) + "</b> · " + d.esc(e.es) +
+          (e.nota ? ' <span class="mini apagado">' + d.esc(e.nota) + "</span>" : "") + "</div>";
+      });
+    }
+
+    if (f.sonidos.length) {
+      out += '<div class="mini apagado" style="margin-top:16px">Cómo suena</div>';
+      f.sonidos.forEach(function (so) {
+        out += '<div class="glosa"><b>' + d.esc(so.simbolo) + "</b> · " + d.esc(so.comoSuena) + "</div>";
+      });
+    }
+
+    out += '<div style="height:12px"></div><button class="btn hueco" data-accion="cerrar-hoja">Cerrar</button>';
+
+    hoja(out, function (a, b, velo) {
+      if (a === "ver-verbo") {
+        velo.remove();
+        const v = APP.verbos.banco().filter(function (x) { return x.base === b.getAttribute("data-id"); })[0];
+        if (v) fichaVerbo(v);
+      }
+    });
+  }
+
+  function botonDecir(texto) {
+    return '<button class="btn azul chico" data-accion="audio" data-texto="' + d.esc(texto) + '">🔊</button>';
+  }
+
   function avisoSinVidas() {
     hoja(
       '<div class="centro">' + APP.mascota.svg("triste", 96) + "</div>" +
@@ -621,6 +786,446 @@
   }
 
   /* ---------------- Gramática ---------------- */
+
+  /* ---------------- Reglas ---------------- */
+
+  const ETAPAS = ["Reconocer", "Escribir", "Dominada"];
+
+  function pantallaReglas() {
+    const r = APP.reglas.resumen(3);
+    let out =
+      '<button class="btn hueco chico" data-accion="volver">← Volver</button>' +
+      "<h1>Reglas</h1>" +
+      '<p class="apagado chico">Una regla explicada corta, y después ejercicios de esa regla y de ' +
+      "ninguna otra, hasta que salga sola. Los ejercicios se generan: no se acaban nunca.</p>" +
+      '<div class="tarjeta destacada"><div class="fuerte">' + r.dominadas + " de " + r.total +
+      " dominadas</div>" +
+      '<div class="barra-prog" style="margin-top:8px"><i style="width:' +
+      Math.round((r.dominadas / r.total) * 100) + '%"></i></div>' +
+      (r.empezadas
+        ? '<div class="mini apagado" style="margin-top:6px">' + r.empezadas + " a medias</div>"
+        : "") +
+      '<button class="btn" style="margin-top:12px" data-accion="regla-sugerida">' +
+      "Practicar la que toca</button></div>";
+
+    APP.datosReglas.GRUPOS.forEach(function (g) {
+      out += '<h2 style="margin-top:20px">' + d.esc(g) + "</h2>";
+      APP.datosReglas.delGrupo(g).forEach(function (re) {
+        const av = APP.reglas.avance(re.id);
+        const est = A().regla(re.id);
+        out +=
+          '<button class="tarjeta lista-item" data-accion="regla" data-id="' + re.id + '">' +
+          '<span class="emo-grande">' + re.emo + "</span>" +
+          '<span class="txt"><span class="fuerte">' + d.esc(re.titulo) + "</span>" +
+          '<span class="mini apagado">' + d.esc(re.resumen) + "</span>" +
+          (est.vistos
+            ? '<span class="barra-prog fina" style="margin-top:6px"><i style="width:' +
+              (av.etapa === 2 ? 100 : Math.round((av.hechos / av.de) * 100)) + "%;background:" +
+              (av.etapa === 2 ? "#58cc02" : av.etapa === 1 ? "#1cb0f6" : "#ffc800") + '"></i></span>'
+            : "") +
+          "</span>" +
+          '<span class="pastilla' + (av.etapa === 2 ? " verde" : "") + '">' +
+          (est.vistos ? ETAPAS[av.etapa] : "nueva") + "</span>" +
+          "</button>";
+      });
+    });
+    return out;
+  }
+
+  function fichaRegla(id) {
+    const re = APP.datosReglas.regla(id);
+    if (!re) return;
+    const av = APP.reglas.avance(id);
+    const est = A().regla(id);
+
+    let out =
+      '<div class="ficha-cabecera"><span class="emo-grande">' + re.emo + "</span>" +
+      "<h2>" + d.esc(re.titulo) + "</h2></div>" +
+      '<div class="clave-regla">' + d.esc(re.clave) + "</div>" +
+      '<div class="explicacion">' + permitirNegrita(re.regla) + "</div>";
+
+    if (re.tabla) {
+      out += '<div class="tabla-caja"><table class="tabla"><thead><tr>' +
+        re.tabla.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
+        "</tr></thead><tbody>" +
+        re.tabla.filas.map(function (f) {
+          return "<tr>" + f.map(function (c) { return "<td>" + d.esc(c) + "</td>"; }).join("") + "</tr>";
+        }).join("") +
+        "</tbody></table></div>";
+    }
+
+    /* El error típico, mal y bien, uno encima del otro. Es lo que de verdad se
+     * recuerda: la forma correcta sola no avisa de nada, porque el error que
+     * cometes te parece correcto hasta que lo ves tachado al lado. */
+    out +=
+      '<div class="trampa"><div class="mal">✗ ' + d.esc(re.error.mal) + "</div>" +
+      '<div class="bien">✓ ' + d.esc(re.error.bien) + "</div></div>";
+
+    out +=
+      '<div class="mini apagado" style="margin-top:16px">' +
+      (est.vistos
+        ? av.etapa === 2
+          ? "Dominada. Sigue apareciendo de vez en cuando para que no se enfríe."
+          : av.etapa === 1
+            ? "Ahora hay que escribirla: te faltan " + av.faltan + " seguidas para darla por dominada."
+            : "Te faltan " + av.faltan + " seguidas para pasar a escribirla."
+        : "Sin empezar.") +
+      "</div>" +
+      '<button class="btn" style="margin-top:10px" data-accion="practicar-regla" data-id="' + id + '">' +
+      (est.vistos ? "Seguir practicando" : "Practicar esta regla") + "</button>" +
+      '<div style="height:8px"></div>' +
+      '<button class="btn hueco" data-accion="cerrar-hoja">Cerrar</button>';
+
+    hoja(out, function (a, b, velo) {
+      if (a === "practicar-regla") {
+        velo.remove();
+        practicarRegla(b.getAttribute("data-id"));
+      }
+    });
+  }
+
+  function practicarRegla(id) {
+    const re = APP.datosReglas.regla(id);
+    APP.leccion.iniciar({
+      ejercicios: filtrar(APP.reglas.tanda(id, APP.reglas.LARGO)),
+      titulo: re.titulo,
+      modo: "practica",
+      corazones: false,
+      alTerminar: pintar,
+      alRepetir: function () { practicarRegla(id); },
+    });
+  }
+
+  /* ---------------- El tutor de conversación ----------------
+   *
+   * La única pantalla que necesita internet. Todo lo demás de la aplicación
+   * funciona sin conexión, así que acá hay que ser explícito: si no se puede
+   * usar, se dice por qué y cómo se arregla. Un botón que no hace nada es
+   * peor que una explicación.
+   */
+  let tutorEsperando = false;
+
+  function pantallaTutor() {
+    let out =
+      '<button class="btn hueco chico" data-accion="volver">← Volver</button>' +
+      "<h1>Conversar</h1>" +
+      '<div id="tutor-estado"><p class="apagado chico">Comprobando…</p></div>' +
+      '<div id="tutor-chat" class="chat"></div>' +
+      '<div id="tutor-barra"></div>';
+    setTimeout(pintarTutor, 0);
+    return out;
+  }
+
+  function pintarTutor() {
+    const caja = d.$("#tutor-estado", raiz);
+    if (!caja) return;
+
+    APP.tutor.estado().then(function (e) {
+      if (!d.$("#tutor-estado", raiz)) return;
+      if (!e.disponible) return tutorNoDisponible(e.motivo);
+
+      d.$("#tutor-estado", raiz).innerHTML =
+        '<p class="apagado chico">Habla o escribe en inglés. Te contesto, y si te equivocas ' +
+        "te digo cómo se dice y por qué.</p>" +
+        '<div class="mini apagado">Te quedan ' + e.quedan + " mensajes hoy</div>";
+      pintarChat();
+      pintarBarraTutor(e.quedan > 0);
+    });
+  }
+
+  function tutorNoDisponible(motivo) {
+    const caja = d.$("#tutor-estado", raiz);
+    const chat = d.$("#tutor-chat", raiz);
+    const barra = d.$("#tutor-barra", raiz);
+    if (chat) chat.innerHTML = "";
+    if (barra) barra.innerHTML = "";
+
+    if (motivo === "sin_internet") {
+      caja.innerHTML =
+        '<div class="tarjeta"><h3>Sin internet</h3>' +
+        '<p class="chico apagado">Conversar es lo único que necesita conexión. ' +
+        "Todo lo demás de la aplicación funciona igual sin ella.</p></div>";
+      return;
+    }
+    if (motivo === "sin_cuenta") {
+      caja.innerHTML =
+        '<div class="tarjeta"><h3>Necesitas una cuenta</h3>' +
+        '<p class="chico apagado">Para conversar hace falta entrar, porque hay un tope de ' +
+        "mensajes al día por persona.</p>" +
+        '<button class="btn" data-accion="crear-cuenta">Crear una cuenta</button></div>';
+      return;
+    }
+    /* sin_clave. Se explica con todas sus letras, incluido que cuesta dinero:
+     * descubrir el cobro después sería una sorpresa desagradable, y esto es
+     * lo único de la aplicación que no es gratis. */
+    caja.innerHTML =
+      '<div class="tarjeta"><h3>Falta configurarlo</h3>' +
+      '<p class="chico apagado">El tutor es la única parte de la aplicación que no es gratis: ' +
+      "usa un modelo de lenguaje y eso se paga por uso. Para activarlo:</p>" +
+      '<ol class="chico" style="padding-left:1.2em">' +
+      "<li>Saca una clave en <b>console.anthropic.com</b> y ponle algo de crédito.</li>" +
+      "<li>En Render, tu servicio → <b>Environment</b>.</li>" +
+      "<li>Agrega <b>ANTHROPIC_API_KEY</b> con esa clave y guarda.</li>" +
+      "</ol>" +
+      '<p class="mini apagado">La clave se queda en el servidor y nunca llega al teléfono: ' +
+      "si estuviera acá, cualquiera podría copiarla y gastar tu crédito. " +
+      "Hay un tope de mensajes al día para que no se dispare la cuenta.</p></div>";
+  }
+
+  function pintarChat() {
+    const chat = d.$("#tutor-chat", raiz);
+    if (!chat) return;
+    const hist = APP.tutor.historial();
+
+    if (!hist.length) {
+      /* Delante de un cuadro de texto vacío no se le ocurre nada a nadie. Los
+       * temas de arranque son lo que convierte "conversar" en algo que se
+       * empieza de verdad. */
+      chat.innerHTML =
+        '<div class="mini apagado" style="margin:10px 0">¿De qué hablamos?</div>' +
+        APP.tutor.ARRANQUES.map(function (a, i) {
+          return '<button class="tarjeta lista-item" data-accion="tutor-tema" data-i="' + i + '">' +
+            '<span class="emo-grande">' + a.emo + "</span>" +
+            '<span class="txt"><span class="fuerte">' + d.esc(a.es) + "</span></span></button>";
+        }).join("");
+      return;
+    }
+
+    chat.innerHTML = hist.map(function (t) {
+      if (t.papel === "yo") {
+        return '<div class="burbuja-chat mia">' + d.esc(t.texto) + "</div>";
+      }
+      return (
+        '<div class="burbuja-chat suya">' +
+        '<div class="texto">' + tocablesEn(t.texto) + "</div>" +
+        '<button class="btn azul chico" data-accion="audio" data-texto="' + d.esc(t.texto) + '">🔊</button>' +
+        "</div>" +
+        (t.correccion
+          ? '<div class="correccion"><div class="mal">✗ ' + d.esc(t.correccion.mal || "") + "</div>" +
+            '<div class="bien">✓ ' + d.esc(t.correccion.bien) + "</div>" +
+            '<div class="mini">' + d.esc(t.correccion.porque || "") + "</div></div>"
+          : "")
+      );
+    }).join("") + (tutorEsperando ? '<div class="burbuja-chat suya pensando">escribiendo…</div>' : "");
+
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function tocablesEn(texto) {
+    return APP.diccionario.trocear(texto).map(function (p) {
+      if (!p.palabra) return d.esc(p.texto);
+      return '<span class="tocable" data-accion="palabra" data-palabra="' + d.esc(p.texto) + '">' +
+        d.esc(p.texto) + "</span>";
+    }).join("");
+  }
+
+  function pintarBarraTutor(sePuede) {
+    const barra = d.$("#tutor-barra", raiz);
+    if (!barra) return;
+    if (!sePuede) {
+      barra.innerHTML = '<div class="tarjeta"><p class="chico apagado">Llegaste al tope de hoy. ' +
+        "Vuelve mañana: el tope está para que no se dispare la cuenta.</p></div>";
+      return;
+    }
+    barra.innerHTML =
+      '<div class="chat-barra">' +
+      '<input class="campo" id="tutor-campo" type="text" placeholder="Escribe en inglés…" ' +
+      'autocomplete="off" autocapitalize="sentences" ' + (tutorEsperando ? "disabled" : "") + ">" +
+      (APP.tutor.sePuedeDictar()
+        ? '<button class="micro chico" data-accion="tutor-micro" aria-label="Hablar">🎤</button>'
+        : "") +
+      /* Enviar va como icono y no como "Enviar". En un teléfono de 390 px, la
+       * palabra le come el ancho al campo y el texto que escribes se ve
+       * cortado, que es justo lo que no puede pasar cuando lo que haces es
+       * escribir. */
+      '<button class="btn redondo" data-accion="tutor-enviar" aria-label="Enviar"' +
+      (tutorEsperando ? " disabled" : "") + ">➤</button>" +
+      "</div>" +
+      (APP.tutor.historial().length
+        ? '<button class="btn hueco chico" style="margin-top:8px" data-accion="tutor-nueva">Empezar otra conversación</button>'
+        : "");
+  }
+
+  function enviarAlTutor(texto) {
+    const limpio = String(texto || "").trim();
+    if (!limpio || tutorEsperando) return;
+
+    APP.tutor.anotar("yo", limpio);
+    tutorEsperando = true;
+    pintarChat();
+    pintarBarraTutor(true);
+
+    APP.tutor.mandar(limpio).then(function (r) {
+      tutorEsperando = false;
+      APP.tutor.anotar("tutor", r.respuesta, r.correccion);
+      pintarChat();
+      pintarBarraTutor(true);
+      // Se lee en voz alta: la mitad de la gracia de conversar es oírlo.
+      if (A().estado().ajustes.sonido !== false) APP.audio.hablar(r.respuesta);
+      APP.almacen.contar("tutor");
+    }).catch(function (e) {
+      tutorEsperando = false;
+      pintarChat();
+      pintarBarraTutor(true);
+      d.avisar("No se pudo enviar", e.message || "Prueba otra vez.");
+    });
+  }
+
+  function dictarAlTutor() {
+    const campo = d.$("#tutor-campo", raiz);
+    const boton = d.$("[data-accion=tutor-micro]", raiz);
+    if (boton) boton.classList.add("grabando");
+    APP.audio.escuchar({
+      parcial: function (t) { if (campo) campo.value = t; },
+      fin: function (t) {
+        if (boton) boton.classList.remove("grabando");
+        if (campo && t) campo.value = t;
+      },
+      error: function () {
+        if (boton) boton.classList.remove("grabando");
+        d.avisar("No te escuché", "Revisa que el navegador tenga permiso para usar el micrófono.");
+      },
+    });
+  }
+
+  /* ---------------- Exámenes y nivelación ---------------- */
+
+  function verNivel(id) {
+    const n = APP.curriculo.nivel(id);
+    hoja(
+      '<div class="ficha-cabecera"><span class="emo-grande">' + n.emo + "</span>" +
+      "<h2>" + d.esc(n.titulo) + ' <span class="mcer">' + d.esc(n.mcer) + "</span></h2></div>" +
+      '<p class="chico apagado">' + d.esc(n.resumen) + "</p>" +
+      '<div class="mini apagado" style="margin-top:14px">Al terminarlo vas a poder</div>' +
+      "<ul class=\"puedes\">" +
+      n.puedes.map(function (x) { return "<li>" + d.esc(x) + "</li>"; }).join("") +
+      "</ul>" +
+      '<div style="height:10px"></div><button class="btn hueco" data-accion="cerrar-hoja">Cerrar</button>'
+    );
+  }
+
+  function abrirExamen(id) {
+    const n = APP.curriculo.nivel(id);
+    const a = A().estado().ajustes;
+    const puedeHablar = a.microfono !== false && APP.audio.hayMicrofono();
+    const puedeOir = a.sonido !== false && APP.audio.hayVoz();
+
+    function arrancar(callado) {
+      /* Si no puede hablar ahora, se decide ANTES de empezar y el examen se
+       * arma sin preguntas orales, repartiéndolas entre leer y escribir.
+       * Preguntar acá y no a mitad de camino es lo correcto: saltarlas una a
+       * una cuenta como falladas y hunde la nota por estar en un bus, no por
+       * no saber inglés. */
+      const ex = APP.examen.armar(id, {
+        sinVoz: !puedeOir,
+        sinMicro: !puedeHablar || callado,
+      });
+      APP.leccion.iniciar({
+        ejercicios: ex.preguntas,
+        titulo: "Examen · " + n.titulo,
+        modo: "examen",
+        examen: ex,
+        corazones: false,
+        alTerminar: pintar,
+      });
+    }
+
+    const muestra = APP.examen.armar(id, { sinVoz: !puedeOir, sinMicro: !puedeHablar });
+
+    hoja(
+      '<div class="centro"><div class="diploma-emo">📝</div></div>' +
+      '<h2 class="centro">Examen de ' + d.esc(n.titulo) + "</h2>" +
+      '<p class="chico apagado">' + muestra.total + " preguntas de las cuatro destrezas. " +
+      "No se pierden vidas y no te digo si acertaste hasta el final: así mide lo que sabes " +
+      "y no cómo te vas adaptando.</p>" +
+      '<p class="chico apagado">Se aprueba con ' + APP.examen.PARA_APROBAR +
+      "%, y se puede repetir todas las veces que quieras.</p>" +
+      '<button class="btn" data-accion="empezar-examen">Empezar</button>' +
+      (puedeHablar
+        ? '<div style="height:8px"></div>' +
+          '<button class="btn hueco chico" data-accion="examen-callado">' +
+          "No puedo hablar en voz alta ahora</button>"
+        : "") +
+      '<div style="height:8px"></div>' +
+      '<button class="btn hueco" data-accion="cerrar-hoja">Ahora no</button>',
+      function (acc, b, velo) {
+        if (acc !== "empezar-examen" && acc !== "examen-callado") return;
+        velo.remove();
+        arrancar(acc === "examen-callado");
+      }
+    );
+  }
+
+  function abrirNivelacion() {
+    const pr = APP.examen.nivelacion();
+    hoja(
+      '<div class="centro"><div class="diploma-emo">🧭</div></div>' +
+      '<h2 class="centro">Prueba de nivel</h2>' +
+      '<p class="chico apagado">' + pr.total + " preguntas, de más fácil a más difícil. " +
+      "No se aprueba ni se reprueba: sólo sirve para dejarte donde te corresponde.</p>" +
+      '<p class="chico apagado">Si no sabes una, déjala: contestar al azar te dejaría en un ' +
+      "nivel que no es el tuyo.</p>" +
+      '<button class="btn" data-accion="empezar-nivelacion">Empezar</button>' +
+      '<div style="height:8px"></div>' +
+      '<button class="btn hueco" data-accion="cerrar-hoja">Ahora no</button>',
+      function (acc, b, velo) {
+        if (acc !== "empezar-nivelacion") return;
+        velo.remove();
+        APP.leccion.iniciar({
+          ejercicios: pr.preguntas,
+          titulo: "Prueba de nivel",
+          modo: "examen",
+          examen: Object.assign({}, pr, { nivel: null, nivelacion: true }),
+          corazones: false,
+          alTerminar: pintar,
+        });
+      }
+    );
+  }
+
+  /* La clase que abre una unidad. Se enseña la regla antes de practicarla: un
+   * adulto entiende "he lleva -s" en diez segundos leyéndolo, y en veinte
+   * ejercicios adivinándolo. */
+  function claseAntesDe(l, seguir) {
+    const temas = (l.clase || []).map(function (id) { return APP.datosGramatica.tema(id); })
+      .filter(Boolean);
+    if (!temas.length) return seguir();
+
+    let i = 0;
+    function mostrar() {
+      const t = temas[i];
+      const ultimo = i === temas.length - 1;
+      hoja(
+        '<div class="ficha-cabecera"><span class="emo-grande">' + t.emo + "</span>" +
+        "<h2>" + d.esc(t.titulo) + "</h2></div>" +
+        '<div class="explicacion">' + permitirNegrita(t.explicacion) + "</div>" +
+        (t.tabla
+          ? '<div class="tabla-caja"><table class="tabla"><thead><tr>' +
+            t.tabla.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
+            "</tr></thead><tbody>" +
+            t.tabla.filas.map(function (f) {
+              return "<tr>" + f.map(function (c) { return "<td>" + d.esc(c) + "</td>"; }).join("") + "</tr>";
+            }).join("") + "</tbody></table></div>"
+          : "") +
+        '<div class="trampa"><div class="mal">✗ ' + d.esc(t.trampa.mal) + "</div>" +
+        '<div class="bien">✓ ' + d.esc(t.trampa.bien) + "</div>" +
+        '<div class="mini" style="margin-top:6px">' + d.esc(t.trampa.porque) + "</div></div>" +
+        '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">' +
+        (ultimo ? "Entendido, a practicar" : "Siguiente") + "</button>" +
+        (temas.length > 1
+          ? '<div class="mini apagado centro" style="margin-top:8px">' + (i + 1) + " de " + temas.length + "</div>"
+          : ""),
+        function (acc, b, velo) {
+          if (acc !== "clase-seguir") return;
+          velo.remove();
+          i++;
+          if (i < temas.length) mostrar();
+          else seguir();
+        }
+      );
+    }
+    mostrar();
+  }
 
   function pantallaGramatica() {
     const G = APP.datosGramatica;
@@ -1385,6 +1990,16 @@
   function enganchar() {
     raiz = d.$("#app");
 
+    // Enter manda el mensaje al tutor: en una conversación, tener que buscar el
+    // botón cada vez rompe el ritmo.
+    raiz.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter" || ev.target.id !== "tutor-campo") return;
+      ev.preventDefault();
+      const t = ev.target.value;
+      ev.target.value = "";
+      enviarAlTutor(t);
+    });
+
     raiz.addEventListener("input", function (ev) {
       if (ev.target.getAttribute("data-accion") === "velocidad") {
         A().estado().ajustes.velocidad = parseFloat(ev.target.value);
@@ -1399,6 +2014,7 @@
       const e = A().estado();
 
       if (a === "tab") {
+        vista = null;
         tab = b.getAttribute("data-tab");
         pintar();
         return;
@@ -1408,6 +2024,46 @@
       if (a === "errores") return errores();
       if (a === "tema") return tema(b.getAttribute("data-id"));
       if (a === "contrarreloj") return contrarreloj();
+      if (a === "reglas") { vista = "reglas"; return pintar(); }
+      if (a === "tutor") { vista = "tutor"; return pintar(); }
+      if (a === "tutor-enviar") {
+        const c = d.$("#tutor-campo", raiz);
+        const t = c ? c.value : "";
+        if (c) c.value = "";
+        return enviarAlTutor(t);
+      }
+      if (a === "tutor-micro") return dictarAlTutor();
+      if (a === "tutor-tema") {
+        const t = APP.tutor.ARRANQUES[parseInt(b.getAttribute("data-i"), 10)];
+        if (!t) return;
+        if (!t.en) {
+          const c = d.$("#tutor-campo", raiz);
+          if (c) c.focus();
+          return;
+        }
+        return enviarAlTutor(t.en);
+      }
+      if (a === "tutor-nueva") {
+        APP.tutor.reiniciar();
+        pintarChat();
+        return pintarBarraTutor(true);
+      }
+      if (a === "regla") return fichaRegla(b.getAttribute("data-id"));
+      if (a === "regla-sugerida") {
+        const re = APP.reglas.sugerida(3);
+        if (re) fichaRegla(re.id);
+        return;
+      }
+      if (a === "examen") return abrirExamen(b.getAttribute("data-id"));
+      if (a === "ver-nivel") return verNivel(b.getAttribute("data-id"));
+      if (a === "nivelacion") return abrirNivelacion();
+      if (a === "saltar-nivelacion") {
+        A().estado().ajustes.nivelacionHecha = true;
+        A().guardar();
+        return pintar();
+      }
+      if (a === "palabra") return palabra(b.getAttribute("data-palabra"));
+      if (a === "volver") { vista = null; return pintar(); }
       if (a === "gramatica") return pantallaGramatica();
       if (a === "verbos") return pantallaVerbos();
       if (a === "sonidos") return pantallaSonidos();
@@ -1501,6 +2157,7 @@
   window.APP = window.APP || {};
   APP.pantallas = {
     pintar: pintar,
+    palabra: palabra,
     enganchar: enganchar,
     aplicarTema: aplicarTema,
     repasoDeRescate: repasoDeRescate,

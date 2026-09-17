@@ -929,3 +929,197 @@ p { margin: 0 0 12px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ==========================================================================
+   Niveles, reglas, lectura y exámenes
+   ========================================================================== */
+
+/* --- Cabecera de nivel --- */
+.nivel-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--tarjeta);
+  border: 2px solid var(--c, var(--borde));
+}
+.nivel-cabecera.cerrado { opacity: .62; border-style: dashed; }
+.nivel-emo { font-size: 30px; line-height: 1; flex: 0 0 auto; }
+.nivel-txt { flex: 1 1 auto; min-width: 0; }
+.nivel-txt h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nivel-txt .sub { font-size: .84rem; color: var(--apagado); }
+.mcer {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--fondo2);
+  color: var(--apagado);
+}
+.pastilla.verde { background: #58cc02; color: #fff; }
+
+/* --- Tarjeta de examen --- */
+.examen-tarjeta { text-align: center; border: 2px dashed var(--borde); }
+.examen-tarjeta.aprobada { border-style: solid; border-color: #58cc02; }
+.examen-emo { font-size: 34px; }
+.diploma-emo { font-size: 72px; line-height: 1.1; }
+
+.nota-grande {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--apagado);
+}
+.nota-grande.buena { color: #58cc02; }
+
+.destrezas { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+.destreza-fila { display: flex; align-items: center; gap: 9px; font-size: .86rem; }
+.destreza-fila .emo { flex: 0 0 auto; }
+.destreza-fila .nombre { flex: 0 0 5.4em; }
+.destreza-fila .barra-prog { flex: 1 1 auto; }
+.destreza-fila .cifra { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--apagado); }
+
+.puedes { margin: 8px 0 0; padding-left: 1.1em; font-size: .9rem; }
+.puedes li { margin-bottom: 6px; }
+
+/* --- Ejercicios de regla --- */
+.frase-regla {
+  font-size: 1.3rem;
+  line-height: 1.7;
+  text-align: center;
+  margin: 18px 0 8px;
+  word-break: break-word;
+}
+.hueco-regla {
+  display: inline-block;
+  min-width: 3.4em;
+  border-bottom: 3px solid var(--azul, #1cb0f6);
+  margin: 0 3px;
+  font-weight: 700;
+}
+.clave-regla {
+  background: var(--fondo2);
+  border-left: 4px solid var(--azul, #1cb0f6);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 12px;
+  margin: 12px 0;
+  font-weight: 600;
+  font-size: .94rem;
+}
+
+/* --- Lectura --- */
+.lectura { font-size: 1.05rem; line-height: 1.75; margin: 14px 0; }
+.lectura p { margin: 0 0 14px; }
+.glosario {
+  background: var(--fondo2);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 14px;
+}
+.glosa { font-size: .9rem; padding: 4px 0; }
+
+/* Las palabras tocables no se subrayan: el texto tiene que seguir leyéndose
+   como un texto. Sólo al tocarlas se nota que responden. */
+.tocable { cursor: pointer; border-radius: 3px; }
+.tocable:active { background: var(--azul, #1cb0f6); color: #fff; }
+@media (hover: hover) {
+  .tocable:hover { background: var(--fondo2); }
+}
+
+.opcion.izq { text-align: left; }
+
+/* --- Ficha de una palabra --- */
+.palabra-cabecera { display: flex; align-items: center; gap: 12px; }
+.palabra-cabecera h2 { margin: 0; flex: 1 1 auto; word-break: break-word; }
+.definicion { font-size: 1.15rem; margin-top: 6px; }
+.etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.nota-palabra {
+  margin-top: 10px;
+  font-size: .88rem;
+  background: var(--fondo2);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
+/* --- Lista de reglas --- */
+.lista-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.lista-item .emo-grande { font-size: 26px; flex: 0 0 auto; }
+.lista-item .txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.lista-item .txt .fuerte,
+.lista-item .txt .mini { display: block; }
+
+/* --- Conversar con el tutor --- */
+.chat { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.burbuja-chat {
+  max-width: 85%;
+  padding: 10px 13px;
+  border-radius: 16px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.burbuja-chat.mia {
+  align-self: flex-end;
+  background: var(--azul, #1cb0f6);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+.burbuja-chat.suya {
+  align-self: flex-start;
+  background: var(--fondo2);
+  border-bottom-left-radius: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.burbuja-chat.suya .texto { flex: 1 1 auto; min-width: 0; }
+.burbuja-chat.pensando { opacity: .6; font-style: italic; }
+
+/* La corrección va fuera de la burbuja y con su propio color: es lo que hay
+   que mirar, no una frase más de la conversación. */
+.correccion {
+  align-self: flex-start;
+  max-width: 92%;
+  background: #fff8e6;
+  border-left: 3px solid #ffc800;
+  border-radius: 0 10px 10px 0;
+  padding: 9px 12px;
+  font-size: .9rem;
+}
+.correccion .mal { color: #c1392b; text-decoration: line-through; }
+.correccion .bien { color: #2e7d32; font-weight: 600; }
+:root[data-theme="dark"] .correccion,
+:root:not([data-theme="light"]) .correccion { background: #2e2716; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .correccion { background: #fff8e6; }
+}
+
+.chat-barra { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.chat-barra .campo { flex: 1 1 auto; min-width: 0; min-height: auto; }
+.micro.chico {
+  width: 46px; height: 46px; font-size: 20px;
+  flex: 0 0 auto; border-radius: 50%;
+}
+.btn.redondo {
+  flex: 0 0 auto;
+  width: 46px; height: 46px;
+  min-height: auto;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

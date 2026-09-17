@@ -17,6 +17,8 @@ const ARCHIVOS = [
   "js/datos-verbos.js", "js/datos-sonidos.js", "js/datos-gramatica.js", "js/curriculo.js",
   "js/srs.js", "js/audio.js", "js/texto.js", "js/motor.js", "js/logros.js",
   "js/verbos.js", "js/pronunciacion.js", "js/gramatica.js",
+  "js/datos-reglas.js", "js/reglas.js", "js/datos-lectura.js", "js/examen.js",
+  "js/datos-palabras.js", "js/diccionario.js",
   "js/desafio.js", "js/mascota.js",
 ];
 
@@ -34,10 +36,17 @@ const ventana = {
   crypto: require("crypto").webcrypto,
   fetch: function () { return Promise.reject(new Error("sin red en las pruebas")); },
   AbortController: AbortController,
-  // Sin voz ni micrófono: es el peor caso, y así se comprueba que las
-  // lecciones igual se pueden armar en un navegador que no los tenga.
-  speechSynthesis: null,
-  navigator: { vibrate: null },
+  /* Voz y micrófono de mentira. Antes acá no había ninguno de los dos —el peor
+   * caso— pero eso dejaba sin probar justo la mitad del examen: las preguntas
+   * de escuchar y de hablar nunca se generaban, así que nadie se habría
+   * enterado de que estaban rotas. El peor caso se comprueba aparte, apagando
+   * las dos cosas a propósito. */
+  speechSynthesis: {
+    getVoices: function () { return [{ name: "UK English", lang: "en-GB" }]; },
+    speak: function () {}, cancel: function () {}, addEventListener: function () {},
+  },
+  SpeechRecognition: function () {},
+  navigator: { vibrate: null, mediaDevices: { getUserMedia: function () {} } },
   document: { addEventListener: function () {}, querySelector: function () { return null; } },
   setTimeout: setTimeout,
   AudioContext: null,
@@ -72,6 +81,16 @@ function igual(a, b, msg) {
 
 function cierto(v, msg) {
   if (!v) throw new Error(msg || "esperaba verdadero");
+}
+
+/* Apaga la voz mientras corre 'fn'. Hace falta porque el entorno de pruebas sí
+ * tiene voz —sin ella, medio examen no se podría probar— pero el caso de un
+ * navegador que no la tiene sigue siendo importante: es el de cualquiera con
+ * Firefox en Linux, y ahí la aplicación no puede ofrecer ejercicios mudos. */
+function sinVoz(fn) {
+  const tenia = ventana.speechSynthesis;
+  ventana.speechSynthesis = null;
+  try { return fn(); } finally { ventana.speechSynthesis = tenia; }
 }
 
 /* ---------------- Comparar respuestas ---------------- */
@@ -129,6 +148,11 @@ prueba("toda tarjeta tiene inglés y español", function () {
 prueba("cada lección apunta a temas que existen", function () {
   const sinContenido = [];
   APP.curriculo.LECCIONES.forEach(function (l) {
+    // Una lección saca su contenido de una de tres fuentes: un texto de
+    // lectura, una o más reglas de gramática, o temas de vocabulario. Las dos
+    // primeras se comprueban en su propia prueba; acá sólo las de vocabulario.
+    if (l.texto || (l.reglas && l.reglas.length)) return;
+    if (!l.skills) { sinContenido.push(l.id + " (sin fuente de contenido)"); return; }
     const hay = l.skills.some(function (s) { return APP.datos.porSkill(s).length > 0; });
     // Los temas de gramática y oído no tienen tarjetas propias: sus ejercicios
     // se arman de los verbos, de -ing/-ed o de los pares mínimos.
@@ -136,6 +160,51 @@ prueba("cada lección apunta a temas que existen", function () {
     if (!hay && !l.skills.some(function (s) { return propios.indexOf(s) >= 0; })) sinContenido.push(l.id);
   });
   igual(sinContenido, []);
+});
+
+prueba("lo que cada lección referencia existe de verdad", function () {
+  /* Una clase, una regla o un texto que no existen no dan error al cargar: la
+   * lección simplemente sale coja o vacía, y eso no se nota hasta que alguien
+   * la abre. */
+  const rotas = [];
+  APP.curriculo.LECCIONES.forEach(function (l) {
+    (l.clase || []).forEach(function (g) {
+      if (!APP.datosGramatica.tema(g)) rotas.push(l.id + " → clase " + g);
+    });
+    (l.reglas || []).forEach(function (r) {
+      if (!APP.datosReglas.regla(r)) rotas.push(l.id + " → regla " + r);
+    });
+    if (l.texto && !APP.datosLectura.texto(l.texto)) rotas.push(l.id + " → texto " + l.texto);
+  });
+  igual(rotas, []);
+});
+
+prueba("ninguna lección se queda sin ejercicios", function () {
+  const flacas = [];
+  APP.curriculo.LECCIONES.forEach(function (l) {
+    const n = APP.motor.sesionLeccion(l).length;
+    if (n < 4) flacas.push(l.id + " (" + n + ")");
+  });
+  igual(flacas, []);
+});
+
+prueba("cada lección declara qué destrezas entrena", function () {
+  const sin = APP.curriculo.LECCIONES
+    .filter(function (l) { return !l.destrezas || !l.destrezas.length; })
+    .map(function (l) { return l.id; });
+  igual(sin, []);
+});
+
+prueba("cada nivel tiene unidades y todas las unidades tienen nivel", function () {
+  const problemas = [];
+  APP.curriculo.NIVELES.forEach(function (n) {
+    if (!APP.curriculo.delNivel(n.id).length) problemas.push(n.id + " sin unidades");
+  });
+  const validos = APP.curriculo.NIVELES.map(function (n) { return n.id; });
+  APP.curriculo.UNIDADES.forEach(function (u) {
+    if (validos.indexOf(u.nivel) < 0) problemas.push(u.id + " apunta al nivel " + u.nivel);
+  });
+  igual(problemas, []);
 });
 
 prueba("los ids de lección no se repiten", function () {
@@ -160,15 +229,102 @@ prueba("todas las lecciones generan ejercicios", function () {
 });
 
 prueba("los ejercicios de elegir siempre traen una única respuesta correcta", function () {
+  /* Hay dos formas de opción, y las dos tienen que cumplir lo mismo.
+   * Los ejercicios del motor traen objetos con la marca 'correcta'; los de
+   * regla y los de lectura traen textos sueltos y la respuesta aparte, en
+   * 'ok'. Comprobar sólo la primera forma dejaría sin vigilar justamente a los
+   * generados, que son los que pueden salir mal sin que nadie los revise. */
   const malos = [];
   APP.curriculo.LECCIONES.forEach(function (l) {
     APP.motor.sesionLeccion(l).forEach(function (e) {
       if (!e.opciones) return;
+      if (typeof e.opciones[0] === "string") {
+        const cuantas = e.opciones.filter(function (o) { return o === e.ok; }).length;
+        if (cuantas !== 1) malos.push(l.id + ":" + e.tipo + " ok=" + e.ok + " en [" + e.opciones + "]");
+        return;
+      }
       const buenas = e.opciones.filter(function (o) { return o.correcta; }).length;
       if (buenas !== 1) malos.push(l.id + ":" + e.tipo + " (" + buenas + ")");
     });
   });
   igual(malos.slice(0, 5), []);
+});
+
+prueba("todo ejercicio de regla explica por qué, no sólo cuál era", function () {
+  /* Es la razón de ser del módulo: si al fallar sólo se ve la respuesta, se
+   * aprende esa respuesta y no la regla. */
+  const mudos = [];
+  APP.datosReglas.REGLAS.forEach(function (r) {
+    for (let i = 0; i < 60; i++) {
+      const e = r.generar();
+      if (!e.porque || e.porque.length < 6) { mudos.push(r.id); break; }
+    }
+  });
+  igual(mudos, []);
+});
+
+prueba("una regla sube a escribir y se da por dominada", function () {
+  const id = "a-an";
+  igual(APP.almacen.etapaRegla(id), 0);
+  igual(APP.reglas.tanda(id, 3)[0].tipo, "regla-elige");
+
+  for (let i = 0; i < APP.almacen.PARA_ESCRIBIR; i++) APP.almacen.anotarRegla(id, true);
+  igual(APP.almacen.etapaRegla(id), 1);
+  const escribiendo = APP.reglas.tanda(id, 3)[0];
+  igual(escribiendo.tipo, "regla-escribe");
+  // En modo escribir no se mandan opciones: enseñarlas sería regalar la
+  // respuesta, que es justo lo que esta etapa deja de hacer.
+  igual(escribiendo.opciones, null);
+
+  for (let i = 0; i < APP.almacen.PARA_DOMINAR; i++) APP.almacen.anotarRegla(id, true);
+  igual(APP.almacen.regla(id).dominada, true);
+
+  // Fallar reinicia la racha pero no borra el dominio ya ganado.
+  APP.almacen.anotarRegla(id, false);
+  igual(APP.almacen.regla(id).dominada, true);
+  igual(APP.almacen.regla(id).seguidos, 0);
+});
+
+prueba("la corrección de una regla perdona la forma pero no el contenido", function () {
+  const e = APP.reglas.tanda("am-is-are", 1)[0];
+  igual(APP.reglas.correcta(e, e.ok.toUpperCase()), true);
+  igual(APP.reglas.correcta(e, "  " + e.ok + " "), true);
+  igual(APP.reglas.correcta(e, e.ok === "is" ? "are" : "is"), false);
+});
+
+prueba("la frase resuelta rellena todos los huecos", function () {
+  const quedan = [];
+  APP.datosReglas.REGLAS.forEach(function (r) {
+    for (let i = 0; i < 40; i++) {
+      const e = r.generar();
+      const hecha = APP.reglas.resuelta({ frase: e.frase, ok: e.ok }, e.ok);
+      if (hecha.indexOf("___") >= 0) quedan.push(r.id + ": " + hecha);
+    }
+  });
+  igual(quedan.slice(0, 3), []);
+});
+
+prueba("cada texto de lectura trae preguntas con respuesta válida", function () {
+  const malos = [];
+  APP.datosLectura.TEXTOS.forEach(function (t) {
+    if (!t.preguntas.length) malos.push(t.id + " sin preguntas");
+    t.preguntas.forEach(function (p, i) {
+      if (!(p.ok >= 0 && p.ok < p.op.length)) malos.push(t.id + " pregunta " + i + " apunta fuera");
+      if (new Set(p.op).size !== p.op.length) malos.push(t.id + " pregunta " + i + " repite opciones");
+    });
+  });
+  igual(malos, []);
+});
+
+prueba("los textos suben de dificultad de un nivel al siguiente", function () {
+  /* Si el texto "avanzado" fuera igual de corto que el básico, el nivel sería
+   * una etiqueta y no una progresión. */
+  function palabras(n) {
+    const t = APP.datosLectura.delNivel(n);
+    return t.reduce(function (a, x) { return a + x.texto.split(/\s+/).length; }, 0) / t.length;
+  }
+  const b = palabras(1), i = palabras(2), a = palabras(3);
+  igual(b < i && i < a, true);
 });
 
 prueba("armar una frase siempre trae todas sus piezas", function () {
@@ -186,13 +342,34 @@ prueba("armar una frase siempre trae todas sus piezas", function () {
 });
 
 prueba("sin voz no se generan ejercicios de escuchar", function () {
-  const conAudio = [];
-  APP.curriculo.LECCIONES.forEach(function (l) {
-    APP.motor.sesionLeccion(l).forEach(function (e) {
-      if (e.autoAudio) conAudio.push(l.id + ":" + e.tipo);
+  sinVoz(function () {
+    const conAudio = [];
+    APP.curriculo.LECCIONES.forEach(function (l) {
+      APP.motor.sesionLeccion(l).forEach(function (e) {
+        if (e.autoAudio) conAudio.push(l.id + ":" + e.tipo);
+      });
     });
+    igual(conAudio.slice(0, 5), []);
   });
-  igual(conAudio.slice(0, 5), []);
+});
+
+prueba("con voz sí se generan, y las lecciones no se quedan cortas", function () {
+  // La otra mitad de la prueba de arriba: que el dictado exista de verdad
+  // cuando el navegador puede hablar.
+  let conAudio = 0;
+  APP.curriculo.LECCIONES.forEach(function (l) {
+    APP.motor.sesionLeccion(l).forEach(function (e) { if (e.autoAudio) conAudio++; });
+  });
+  cierto(conAudio > 0);
+
+  // Y que apagando la voz la lección siga teniendo ejercicios, en vez de
+  // quedarse vacía.
+  sinVoz(function () {
+    const flacas = APP.curriculo.LECCIONES
+      .filter(function (l) { return APP.motor.sesionLeccion(l).length < 4; })
+      .map(function (l) { return l.id; });
+    igual(flacas, []);
+  });
 });
 
 prueba("la conjugación en tercera persona sigue las reglas", function () {
@@ -734,17 +911,25 @@ prueba("cada sonido tiene pares mínimos, salvo el schwa", function () {
 });
 
 prueba("el schwa igual se puede practicar", function () {
-  // Aunque no tenga pares, la sesión no puede quedar vacía en un navegador con
-  // voz: se practica identificándolo y repitiéndolo.
-  const s = APP.pronunciacion.sesionDeUnSonido("schwa", 10);
-  igual(s.length, 0, "sin voz en las pruebas no se genera nada, y eso está bien;");
+  // No tiene pares mínimos —es la excepción documentada— pero la sesión no
+  // puede quedar vacía: se practica identificándolo y repitiéndolo.
+  cierto(APP.pronunciacion.sesionDeUnSonido("schwa", 10).length > 0);
 });
 
-prueba("sin voz, la pronunciación no inventa ejercicios mudos", function () {
-  // Todos sus ejercicios necesitan oír o hablar; en un navegador sin voz la
-  // sesión tiene que venir vacía en vez de traer preguntas imposibles.
-  igual(APP.pronunciacion.sesionMezcla(null, 10).length, 0);
-  igual(APP.pronunciacion.sesionDeUnSonido("i-larga", 10).length, 0);
+prueba("sin voz, la pronunciación no propone nada que haya que oír", function () {
+  /* Lo que no puede pasar es que salga un ejercicio imposible de contestar: un
+   * "escucha y elige" en un navegador que no habla. Los de hablar sí pueden
+   * quedarse, porque el micrófono es otro aparato: con auriculares rotos y
+   * micrófono bueno se practica igual. */
+  sinVoz(function () {
+    [APP.pronunciacion.sesionMezcla(null, 10), APP.pronunciacion.sesionDeUnSonido("i-larga", 10)]
+      .forEach(function (sesion) {
+        const mudos = sesion.filter(function (e) {
+          return e.tipo !== "habla" && (e.audio || e.autoAudio);
+        });
+        igual(mudos, []);
+      });
+  });
 });
 
 prueba("el progreso de un sonido empieza en cero y sube al practicar", function () {
@@ -896,6 +1081,242 @@ prueba("Pelusa siempre tiene algo que decir y una cara que existe", function () 
     cierto(!!APP.mascota.CARAS[s.cara], "caso " + i + ": cara desconocida “" + s.cara + "”");
     cierto(s.texto && s.texto.length > 5, "caso " + i + ": sin texto");
   });
+});
+
+/* ---------------- Exámenes y nivelación ---------------- */
+
+prueba("el examen de cada nivel mide las cuatro destrezas", function () {
+  /* Es la prueba que más falta hacía. El motor produce el tipo "escribe" tanto
+   * para "escribe-en" como para "dictado", y no coincide con el nombre que
+   * declara la lección; mapear por el nombre declarado dejaba el examen sin
+   * una sola pregunta escrita, sin dar ningún error. Aprobar un examen así se
+   * podría hacer adivinando entre alternativas. */
+  const faltan = [];
+  APP.curriculo.NIVELES.forEach(function (n) {
+    const e = APP.examen.armar(n.id);
+    const hay = {};
+    e.preguntas.forEach(function (p) {
+      if (p.tipo !== "lectura-texto") hay[p.destreza] = (hay[p.destreza] || 0) + 1;
+    });
+    APP.curriculo.DESTREZAS.forEach(function (d) {
+      if (!hay[d]) faltan.push(n.id + " sin preguntas de " + d);
+    });
+  });
+  igual(faltan, []);
+});
+
+prueba("el examen sigue siendo completo en un teléfono sin voz ni micrófono", function () {
+  /* Sin esas preguntas el examen quedaría corto, y entonces la nota bajaría
+   * por un problema del aparato y no por lo que se sabe. Se reparten entre
+   * leer y escribir. */
+  const e = APP.examen.armar("basico", { sinVoz: true, sinMicro: true });
+  const completo = APP.examen.armar("basico");
+  igual(e.total >= completo.total - 2, true);
+  const hay = {};
+  e.preguntas.forEach(function (p) {
+    if (p.tipo !== "lectura-texto") hay[p.destreza] = (hay[p.destreza] || 0) + 1;
+  });
+  igual(!hay.hablar && !hay.escuchar, true);
+  igual(hay.escribir > 0 && hay.leer > 0, true);
+});
+
+prueba("el examen incluye un texto y sus preguntas juntos", function () {
+  const e = APP.examen.armar("intermedio");
+  const iTexto = e.preguntas.map(function (p) { return p.tipo; }).indexOf("lectura-texto");
+  igual(iTexto >= 0, true);
+  // La pregunta siguiente al texto tiene que ser suya: separarlos obligaría a
+  // volver atrás a buscarlo.
+  igual(e.preguntas[iTexto + 1].tipo, "lectura-pregunta");
+  igual(e.preguntas[iTexto + 1].texto, e.preguntas[iTexto].texto);
+});
+
+prueba("el texto del examen no cuenta como pregunta", function () {
+  const e = APP.examen.armar("basico");
+  igual(e.total, e.preguntas.filter(function (p) { return p.tipo !== "lectura-texto"; }).length);
+  igual(e.total < e.preguntas.length, true);
+});
+
+prueba("corregir un examen da el porcentaje y la destreza más floja", function () {
+  const e = APP.examen.armar("basico");
+  const todas = {};
+  e.preguntas.forEach(function (p, i) { todas[i] = true; });
+  const perfecto = APP.examen.corregir(e, todas);
+  igual(perfecto.porcentaje, 100);
+  igual(perfecto.aprueba, true);
+
+  const ninguna = APP.examen.corregir(e, {});
+  igual(ninguna.porcentaje, 0);
+  igual(ninguna.aprueba, false);
+
+  // Fallando sólo lo de escuchar, ésa tiene que salir como la más floja.
+  const salvoEscuchar = {};
+  e.preguntas.forEach(function (p, i) { salvoEscuchar[i] = p.destreza !== "escuchar"; });
+  const r = APP.examen.corregir(e, salvoEscuchar);
+  igual(r.floja.destreza, "escuchar");
+  igual(r.floja.bien, 0);
+});
+
+prueba("el nivel siguiente se abre sólo al aprobar el anterior", function () {
+  igual(APP.examen.abierto("basico"), true);
+  igual(APP.examen.abierto("intermedio"), false);
+  igual(APP.examen.abierto("avanzado"), false);
+
+  const e = APP.examen.armar("basico");
+  const casi = {};
+  // Un 60% no alcanza: el corte está en 70.
+  e.preguntas.forEach(function (p, i) { casi[i] = i % 10 < 6; });
+  APP.examen.guardar(e, APP.examen.corregir(e, casi));
+  igual(APP.examen.abierto("intermedio"), false);
+
+  const todas = {};
+  e.preguntas.forEach(function (p, i) { todas[i] = true; });
+  APP.examen.guardar(e, APP.examen.corregir(e, todas));
+  igual(APP.examen.abierto("intermedio"), true);
+  igual(APP.examen.abierto("avanzado"), false);
+
+  // Queda registrada la mejor nota y el número de intentos, no sólo la última.
+  const n = APP.almacen.nivelCurso("basico");
+  igual(n.mejor, 100);
+  igual(n.veces, 2);
+  igual(n.aprobado, true);
+});
+
+prueba("la nivelación recomienda dónde empezar", function () {
+  const p = APP.examen.nivelacion();
+  igual(p.total > 0, true);
+
+  const nada = {};
+  igual(APP.examen.recomendar(p, nada).nivel, "basico");
+
+  const soloBasico = {};
+  p.preguntas.forEach(function (q, i) { soloBasico[i] = q.deNivel === "basico"; });
+  igual(APP.examen.recomendar(p, soloBasico).nivel, "intermedio");
+
+  const todo = {};
+  p.preguntas.forEach(function (q, i) { todo[i] = true; });
+  igual(APP.examen.recomendar(p, todo).nivel, "avanzado");
+});
+
+prueba("la nivelación abre los niveles pero no los da por aprobados", function () {
+  APP.examen.aplicarNivelacion({ nivel: "intermedio" });
+  igual(APP.examen.abierto("intermedio"), true);
+  // Abierto no es aprobado: el examen final sigue ahí para quien lo quiera.
+  igual(APP.almacen.nivelCurso("intermedio").aprobado, false);
+  igual(APP.almacen.nivelCurso("basico").abierto, true);
+});
+
+/* ---------------- El diccionario al tacto ---------------- */
+
+prueba("trocear un texto no pierde ni un carácter", function () {
+  /* La pantalla rearma el texto con estas piezas. Si trocear se comiera un
+   * espacio o un guion, el texto se vería distinto de como se escribió, y eso
+   * en un ejercicio de lectura importa. */
+  const textos = [
+    "She bought it, didn't she? Yes — two invoices.",
+    "Dear Ms. Fuentealba,\n\nThank you for your order of 15 March.",
+    "   ",
+    "",
+  ];
+  const rotos = [];
+  textos.forEach(function (t) {
+    const rearmado = APP.diccionario.trocear(t).map(function (p) { return p.texto; }).join("");
+    if (rearmado !== t) rotos.push(JSON.stringify(t));
+  });
+  igual(rotos, []);
+});
+
+prueba("las formas de un verbo llevan a su infinitivo", function () {
+  /* Quien tropieza con "bought" necesita que le digan que es el pasado de
+   * "buy". Esto estuvo roto: había dos listas de verbos y la que se usaba
+   * guardaba el pasado en un campo con otro nombre, así que ninguna forma de
+   * pasado se indexaba y nadie se enteraba. */
+  const casos = [["bought", "buy"], ["went", "go"], ["paid", "pay"], ["wrote", "write"], ["taken", "take"]];
+  const malos = [];
+  casos.forEach(function (c) {
+    const d = APP.diccionario.buscar(c[0]);
+    if (!d) malos.push(c[0] + " no se encuentra");
+    else if (d.verbo !== c[1]) malos.push(c[0] + " → " + d.verbo + ", se esperaba " + c[1]);
+  });
+  igual(malos, []);
+});
+
+prueba("los plurales y comparativos llegan a la palabra de base", function () {
+  const casos = [
+    ["invoices", "invoice"], ["companies", "company"], ["boxes", "box"],
+    ["cheaper", "cheap"], ["bigger", "big"], ["heavier", "heavy"], ["easier", "easy"],
+    ["studying", "study"], ["stopped", "stop"],
+  ];
+  const malos = [];
+  casos.forEach(function (c) {
+    const d = APP.diccionario.buscar(c[0]);
+    if (!d) malos.push(c[0] + " no se encuentra");
+  });
+  igual(malos, []);
+});
+
+prueba("los plurales irregulares están escritos, porque no hay regla", function () {
+  ["children", "men", "women", "feet", "people"].forEach(function (w) {
+    cierto(!!APP.diccionario.buscar(w), w + " debería estar");
+  });
+});
+
+prueba("el diccionario dice que no sabe en vez de inventar", function () {
+  /* Devolver cualquier cosa sería peor que no devolver nada: enseñaría algo
+   * falso con toda la confianza del mundo. */
+  const f = APP.diccionario.ficha("zxqwv");
+  igual(f.encontrada, false);
+  igual(f.definicion, null);
+});
+
+prueba("resuelve casi todo lo que la aplicación pone en pantalla", function () {
+  /* La medida que importa no es cuántas palabras distintas conoce, sino qué
+   * porcentaje de las que se van a tocar sabe resolver. Una palabra rara que
+   * sale una vez pesa menos que "the", que sale doscientas. */
+  const corpus = [];
+  APP.datos.TARJETAS.forEach(function (t) { corpus.push(t.en); });
+  APP.datosLectura.TEXTOS.forEach(function (t) { corpus.push(t.texto); });
+  APP.datosGramatica.TEMAS.forEach(function (t) {
+    (t.ejemplos || []).forEach(function (e) { corpus.push(e.en); });
+  });
+
+  const veces = {};
+  corpus.join(" ").split(/[^A-Za-z']+/).forEach(function (w) {
+    const k = APP.diccionario.limpiar(w);
+    if (k) veces[k] = (veces[k] || 0) + 1;
+  });
+
+  let total = 0;
+  let resueltas = 0;
+  Object.keys(veces).forEach(function (w) {
+    total += veces[w];
+    if (APP.diccionario.buscar(w)) resueltas += veces[w];
+  });
+  cierto(resueltas / total > 0.95, "sólo resuelve el " + Math.round((resueltas / total) * 100) + "%");
+});
+
+prueba("una palabra con expresiones propias las ofrece", function () {
+  // Tocando "look" hay que poder ver "look for" y "look after": significan
+  // otra cosa, y es justo donde se equivoca un hispanohablante.
+  const f = APP.diccionario.ficha("look");
+  cierto(f.expresiones.length >= 2);
+  cierto(f.expresiones.some(function (e) { return e.en === "look for"; }));
+});
+
+prueba("sólo el inglés se hace tocable, no las preguntas en español", function () {
+  /* Las preguntas del nivel 1 van en español a propósito, para que la
+   * dificultad esté en entender el texto. Hacer tocables esas palabras daría
+   * "esta palabra no está en el curso" sobre «olvida», que es absurdo y hace
+   * dudar de si el diccionario funciona. */
+  const malas = [];
+  APP.curriculo.LECCIONES.filter(function (l) { return l.texto; }).forEach(function (l) {
+    const t = APP.datosLectura.texto(l.texto);
+    APP.motor.sesionLeccion(l).forEach(function (e) {
+      if (e.tipo !== "lectura-pregunta") return;
+      const esperado = t.nivel === 1 ? "es" : "en";
+      if (e.idioma !== esperado) malas.push(l.id + ": idioma " + e.idioma + ", se esperaba " + esperado);
+    });
+  });
+  igual(malas, []);
 });
 
 /* ---------------- Resultado ---------------- */

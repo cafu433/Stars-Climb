@@ -427,6 +427,91 @@
     },
 
     {
+      id: "adjetivos",
+      grupo: "Cómo se arma la frase",
+      emo: "🎨",
+      titulo: "Los adjetivos",
+      resumen: "Van antes del sustantivo, y nunca cambian",
+      explicacion:
+        "Éste es el cambio de chip más grande, porque en español hacemos exactamente lo contrario. " +
+        "En español el adjetivo va <b>después</b>: “un auto rojo”. En inglés va <b>antes</b>: " +
+        "“a red car”. Siempre, sin excepción, cuando acompaña a un sustantivo.\n\n" +
+        "Y además no cambia nunca: ni por género ni por número. “Rojo, roja, rojos, rojas” son las " +
+        "cuatro la misma palabra, <b>red</b>.\n\n" +
+        "Cuando van dos o tres juntos hay un orden que los ingleses siguen sin darse cuenta: " +
+        "opinión, tamaño, edad, color, origen, material. “A nice big old red Italian leather bag”. " +
+        "Nadie te va a corregir si lo cambias, pero suena raro, igual que “un rojo grande auto” en español.",
+      tabla: {
+        cabecera: ["Español", "Inglés", "Ojo con"],
+        filas: [
+          ["un auto rojo", "a red car", "el adjetivo va primero"],
+          ["dos autos rojos", "two red cars", "red no lleva -s"],
+          ["una casa grande", "a big house", ""],
+          ["las facturas pendientes", "the pending invoices", ""],
+          ["un proveedor nuevo", "a new supplier", ""],
+          ["El auto es rojo.", "The car is red.", "después de 'to be' sí va al final"],
+        ],
+      },
+      trampa: {
+        mal: "I need a folder new.",
+        bien: "I need a new folder.",
+        porque:
+          "Traducir el orden del español es el error más frecuente y el que más delata. El adjetivo " +
+          "va pegado antes del sustantivo; sólo va al final cuando el verbo es to be: “the folder is new”.",
+      },
+      ejemplos: [
+        { en: "I need a new folder.", es: "Necesito una carpeta nueva." },
+        { en: "We have two important meetings.", es: "Tenemos dos reuniones importantes." },
+        { en: "She sent a long email.", es: "Ella envió un correo largo." },
+        { en: "The old supplier was cheaper.", es: "El proveedor antiguo era más barato." },
+        { en: "That is a difficult question.", es: "Esa es una pregunta difícil." },
+      ],
+    },
+
+    {
+      id: "adverbios",
+      grupo: "Cómo se arma la frase",
+      emo: "🏃",
+      titulo: "Los adverbios",
+      resumen: "Cómo y cada cuánto pasa algo, y dónde se ponen",
+      explicacion:
+        "Un adjetivo describe una cosa (<i>a slow car</i>); un adverbio describe una acción " +
+        "(<i>she drives slowly</i>). Casi todos se arman agregando <b>-ly</b>, que es el equivalente " +
+        "de nuestro “-mente”.\n\n" +
+        "Los de frecuencia —always, usually, often, sometimes, never— tienen una posición fija que no " +
+        "se parece a la nuestra: van <b>antes del verbo</b> normal, pero <b>después de to be</b>. " +
+        "“I always work late”, pero “I am always late”.\n\n" +
+        "Y una regla que casi nadie te dice: nunca se mete nada entre el verbo y su objeto. " +
+        "“I speak English well”, jamás “I speak well English”.",
+      tabla: {
+        cabecera: ["Adjetivo", "Adverbio", "Ejemplo"],
+        filas: [
+          ["slow", "slowly", "She speaks slowly"],
+          ["quick", "quickly", "Answer quickly, please"],
+          ["careful", "carefully", "Read the contract carefully"],
+          ["easy", "easily", "y → ily"],
+          ["good", "well", "irregular: no existe “goodly”"],
+          ["fast", "fast", "igual: no existe “fastly”"],
+          ["hard", "hard", "“hardly” significa otra cosa: casi nunca"],
+        ],
+      },
+      trampa: {
+        mal: "I speak well English.",
+        bien: "I speak English well.",
+        porque:
+          "En inglés no se separa el verbo de su objeto. El adverbio se va al final de la frase, " +
+          "o antes del verbo si es de frecuencia.",
+      },
+      ejemplos: [
+        { en: "I speak English well.", es: "Hablo inglés bien." },
+        { en: "She always answers quickly.", es: "Ella siempre contesta rápido." },
+        { en: "He is never late.", es: "Él nunca llega tarde." },
+        { en: "Please read the contract carefully.", es: "Por favor lee el contrato con atención." },
+        { en: "We usually meet on Mondays.", es: "Normalmente nos reunimos los lunes." },
+      ],
+    },
+
+    {
       id: "preguntas",
       grupo: "Cómo se arma la frase",
       emo: "🙋",

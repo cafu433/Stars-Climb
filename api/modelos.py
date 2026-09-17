@@ -59,6 +59,31 @@ class Usuario(db.Model):
         return tope > _ahora()
 
 
+class UsoTutor(db.Model):
+    """Cuántos mensajes le ha mandado alguien al tutor hoy.
+
+    Va en su propia tabla y no como dos columnas más en 'usuarios' por una
+    razón práctica: el esquema se crea con db.create_all(), que sabe crear
+    tablas nuevas pero NO sabe agregar columnas a una que ya existe. Añadirlas
+    a 'usuarios' funcionaría en un computador limpio y fallaría en silencio
+    contra la base que ya está en producción.
+
+    Existe porque el tutor es lo único que cuesta dinero: sin un tope, una
+    sesión robada o un bucle en el cliente se come el crédito en una tarde.
+    """
+
+    __tablename__ = "uso_tutor"
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(
+        db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    dia = db.Column(db.String(10), nullable=False)  # AAAA-MM-DD
+    mensajes = db.Column(db.Integer, default=0, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("usuario_id", "dia", name="uq_uso_tutor_dia"),)
+
+
 class Progreso(db.Model):
     __tablename__ = "progresos"
 

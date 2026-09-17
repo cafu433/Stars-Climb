@@ -9,7 +9,7 @@
  * worker nuevo borra las cachés viejas y toma el control de inmediato; si no se
  * sube, los teléfonos que ya la instalaron seguirían con la versión vieja.
  */
-const VERSION = "stars-v2";
+const VERSION = "stars-v4";
 
 const CASCO = [
   ".",
@@ -24,6 +24,9 @@ const CASCO = [
   "js/datos-verbos.js",
   "js/datos-sonidos.js",
   "js/datos-gramatica.js",
+  "js/datos-reglas.js",
+  "js/datos-lectura.js",
+  "js/datos-palabras.js",
   "js/curriculo.js",
   "js/srs.js",
   "js/audio.js",
@@ -32,6 +35,10 @@ const CASCO = [
   "js/verbos.js",
   "js/pronunciacion.js",
   "js/gramatica.js",
+  "js/reglas.js",
+  "js/diccionario.js",
+  "js/examen.js",
+  "js/tutor.js",
   "js/logros.js",
   "js/desafio.js",
   "js/cuenta.js",

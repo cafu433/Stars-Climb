@@ -415,7 +415,79 @@
     return lista.some(function (x) { return x.tarjetaId === ej.tarjetaId; });
   }
 
+  /* Una lección de leer: el texto primero, y después sus preguntas. Va aparte
+   * del resto porque no se arma por tarjetas: el texto es la unidad, y
+   * trocearlo en ejercicios sueltos perdería justo lo que se entrena, que es
+   * seguir una idea a lo largo de varias frases. */
+  function sesionLectura(leccion) {
+    const t = APP.datosLectura && APP.datosLectura.texto(leccion.texto);
+    if (!t) return [];
+    const out = [{ tipo: "lectura-texto", texto: t.id, titulo: t.titulo, cuerpo: t.texto, glosario: t.glosario, emo: t.emo }];
+    revolver(t.preguntas.slice()).forEach(function (p, i) {
+      out.push({
+        tipo: "lectura-pregunta",
+        texto: t.id,
+        id: t.id + "-p" + i,
+        pregunta: p.p,
+        opciones: p.op.slice(),
+        ok: p.op[p.ok],
+        /* En qué idioma está la pregunta. Importa para el diccionario: en el
+         * nivel 1 las preguntas van en español —para que la dificultad esté en
+         * entender el texto y no la pregunta— y hacer tocables esas palabras
+         * daría "esta palabra no está en el curso" sobre «olvida», que es
+         * absurdo y hace dudar de si el diccionario sirve. */
+        idioma: t.nivel === 1 ? "es" : "en",
+      });
+    });
+    return out;
+  }
+
+  /* Tandas de una o varias reglas, repartidas. Cuando la lección pide dos
+   * reglas se alternan en vez de darse una detrás de otra: mezcladas obligan a
+   * decidir cuál aplica, que es la mitad de la dificultad real. */
+  function sesionReglas(leccion) {
+    const ids = leccion.reglas || [];
+    if (!ids.length || !APP.reglas) return [];
+    const porRegla = ids.map(function (id) {
+      return APP.reglas.tanda(id, Math.ceil((leccion.n || 12) / ids.length) + 2);
+    });
+    const out = [];
+    let i = 0;
+    while (out.length < (leccion.n || 12)) {
+      let quedaba = false;
+      for (let r = 0; r < porRegla.length; r++) {
+        if (porRegla[r][i]) { out.push(porRegla[r][i]); quedaba = true; }
+        if (out.length >= (leccion.n || 12)) break;
+      }
+      if (!quedaba) break;
+      i++;
+    }
+    return out;
+  }
+
   function sesionLeccion(leccion) {
+    if (leccion.texto) return sesionLectura(leccion);
+
+    // Una lección puede pedir reglas, ejercicios normales, o las dos cosas.
+    if (!leccion.reglas) return sesionNormal(leccion);
+
+    const total = leccion.n || 12;
+    if (!leccion.tipos) return sesionReglas(leccion);
+
+    /* Con las dos cosas se reparte: dos tercios de regla y un tercio de uso.
+     * El reparto tiene que hacerse ANTES de generar, no recortando después:
+     * pedir las dos tandas completas y luego cortar a 'n' dejaba fuera todos
+     * los ejercicios normales, porque los de regla iban primero y ya llenaban
+     * el cupo. La lección quedaba siendo sólo drill sin que nada lo avisara. */
+    const cuantasReglas = Math.max(1, Math.round(total * 0.65));
+    const deReglas = sesionReglas(Object.assign({}, leccion, { n: cuantasReglas }));
+    const resto = sesionNormal(
+      Object.assign({}, leccion, { n: Math.max(2, total - deReglas.length) })
+    );
+    return deReglas.concat(resto).slice(0, total);
+  }
+
+  function sesionNormal(leccion) {
     const banco = candidatas(leccion.skills);
     const palabras = banco.filter(function (t) { return t.tipo === "palabra"; });
     const frases = banco.filter(function (t) { return t.tipo === "frase"; });
@@ -531,6 +603,8 @@
   window.APP = window.APP || {};
   APP.motor = {
     sesionLeccion: sesionLeccion,
+    sesionLectura: sesionLectura,
+    sesionReglas: sesionReglas,
     sesionRepaso: sesionRepaso,
     sesionErrores: sesionErrores,
     sesionTema: sesionTema,

@@ -35,9 +35,11 @@ def create_app(nombre_config=None):
 
     from api.auth import bp as auth_bp
     from api.progreso import bp as progreso_bp
+    from api.tutor import bp as tutor_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(progreso_bp)
+    app.register_blueprint(tutor_bp)
 
     with app.app_context():
         # create_all en vez de migraciones, a propósito. Son dos tablas que casi
