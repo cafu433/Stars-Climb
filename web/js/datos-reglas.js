@@ -102,24 +102,59 @@
   /* Verbos elegidos para que salgan todas las reglas de escritura: la -s de
    * tercera persona en sus cuatro formas, el -ed y sus excepciones, y el -ing
    * con la e muda y la consonante doble. */
+  /* 'objEs' es el complemento en español. Está para poder escribir la frase de
+   * apoyo como una frase de verdad —"Mi hermana ___ el bus ayer. (tomar)"— en
+   * vez del galimatías que salía antes: "(tomar) mi hermana…". Una ayuda que
+   * no se entiende no ayuda, y encima hace dudar de si el resto está bien. */
   const VERBOS = [
-    { base: "work",  tercera: "works",   ing: "working",  pas: "worked",  es: "trabajar", obj: "here" },
-    { base: "live",  tercera: "lives",   ing: "living",   pas: "lived",   es: "vivir",    obj: "in Santiago" },
-    { base: "study", tercera: "studies", ing: "studying", pas: "studied", es: "estudiar", obj: "English" },
-    { base: "go",    tercera: "goes",    ing: "going",    pas: "went",    es: "ir",       obj: "to the office", irregular: true },
-    { base: "watch", tercera: "watches", ing: "watching", pas: "watched", es: "ver",      obj: "the news" },
-    { base: "stop",  tercera: "stops",   ing: "stopping", pas: "stopped", es: "parar",    obj: "at six" },
-    { base: "play",  tercera: "plays",   ing: "playing",  pas: "played",  es: "jugar",    obj: "tennis" },
-    { base: "make",  tercera: "makes",   ing: "making",   pas: "made",    es: "hacer",    obj: "coffee", irregular: true },
-    { base: "buy",   tercera: "buys",    ing: "buying",   pas: "bought",  es: "comprar",  obj: "the tickets", irregular: true },
-    { base: "send",  tercera: "sends",   ing: "sending",  pas: "sent",    es: "enviar",   obj: "the report", irregular: true },
-    { base: "pay",   tercera: "pays",    ing: "paying",   pas: "paid",    es: "pagar",    obj: "the invoice", irregular: true },
-    { base: "need",  tercera: "needs",   ing: "needing",  pas: "needed",  es: "necesitar", obj: "more time" },
-    { base: "call",  tercera: "calls",   ing: "calling",  pas: "called",  es: "llamar",   obj: "the supplier" },
-    { base: "write", tercera: "writes",  ing: "writing",  pas: "wrote",   es: "escribir", obj: "reports", irregular: true },
-    { base: "take",  tercera: "takes",   ing: "taking",   pas: "took",    es: "tomar",    obj: "the bus", irregular: true },
-    { base: "finish",tercera: "finishes",ing: "finishing",pas: "finished",es: "terminar", obj: "at five" },
+    { base: "work",  tercera: "works",   ing: "working",  pas: "worked",  es: "trabajar", obj: "here",           objEs: "acá" },
+    { base: "live",  tercera: "lives",   ing: "living",   pas: "lived",   es: "vivir",    obj: "in Santiago",    objEs: "en Santiago" },
+    { base: "study", tercera: "studies", ing: "studying", pas: "studied", es: "estudiar", obj: "English",        objEs: "inglés" },
+    { base: "go",    tercera: "goes",    ing: "going",    pas: "went",    es: "ir",       obj: "to the office",  objEs: "a la oficina", irregular: true },
+    { base: "watch", tercera: "watches", ing: "watching", pas: "watched", es: "ver",      obj: "the news",       objEs: "las noticias" },
+    { base: "play",  tercera: "plays",   ing: "playing",  pas: "played",  es: "jugar",    obj: "tennis",         objEs: "tenis" },
+    { base: "make",  tercera: "makes",   ing: "making",   pas: "made",    es: "hacer",    obj: "coffee",         objEs: "café", irregular: true },
+    { base: "buy",   tercera: "buys",    ing: "buying",   pas: "bought",  es: "comprar",  obj: "the tickets",    objEs: "las entradas", irregular: true },
+    { base: "send",  tercera: "sends",   ing: "sending",  pas: "sent",    es: "enviar",   obj: "the report",     objEs: "el informe", irregular: true },
+    { base: "pay",   tercera: "pays",    ing: "paying",   pas: "paid",    es: "pagar",    obj: "the invoice",    objEs: "la factura", irregular: true },
+    { base: "need",  tercera: "needs",   ing: "needing",  pas: "needed",  es: "necesitar", obj: "more time",     objEs: "más tiempo" },
+    { base: "call",  tercera: "calls",   ing: "calling",  pas: "called",  es: "llamar",   obj: "the supplier",   objEs: "al proveedor" },
+    { base: "write", tercera: "writes",  ing: "writing",  pas: "wrote",   es: "escribir", obj: "reports",        objEs: "informes", irregular: true },
+    { base: "take",  tercera: "takes",   ing: "taking",   pas: "took",    es: "tomar",    obj: "the bus",        objEs: "el bus", irregular: true },
+    { base: "finish",tercera: "finishes",ing: "finishing",pas: "finished",es: "terminar", obj: "at five",        objEs: "a las cinco" },
+    { base: "stop",  tercera: "stops",   ing: "stopping", pas: "stopped", es: "parar",    obj: "at six",         objEs: "a las seis" },
   ];
+
+  /* Un sujeto que puede hacer cosas. "The invoices don't take the bus" y "The
+   * invoices are playing tennis" son gramaticalmente impecables y no significan
+   * nada: en un ejercicio de gramática eso hace dudar de si uno entendió mal la
+   * frase, en vez de pensar en la regla. */
+  function sujetoVivo(rnd) {
+    return alAzar(SUJETOS.filter(function (x) { return x.vivo; }), rnd);
+  }
+
+  /* "I" va SIEMPRE con mayúscula, esté donde esté. La aplicación lo enseña como
+   * regla y luego escribía "Did i finish?" al meter el sujeto en medio de una
+   * pregunta: enseñar una regla y romperla en el ejercicio siguiente es peor
+   * que no enseñarla. */
+  function enMinusculas(en) {
+    return en === "I" ? "I" : en.toLowerCase();
+  }
+
+  /* La frase de apoyo, escrita como en un libro de gramática: la oración en
+   * español con el hueco y el infinitivo entre paréntesis. No se inventan
+   * conjugaciones —serían otra cosa que se puede equivocar— y se entiende. */
+  function apoyo(sujetoEs, verbo, cuando, negado) {
+    return (
+      mayuscula(sujetoEs) + (negado ? " no" : "") + " ___ " + verbo.objEs +
+      (cuando ? " " + cuando : "") + ". (" + verbo.es + ")"
+    );
+  }
+
+  function mayuscula(t) {
+    const x = String(t || "");
+    return x ? x.charAt(0).toUpperCase() + x.slice(1) : x;
+  }
 
   function alAzar(lista, rnd) {
     return lista[Math.floor((rnd || Math.random)() * lista.length)];
@@ -177,35 +212,48 @@
         { en: "She is my sister.", es: "Ella es mi hermana." },
       ],
       generar: function (rnd) {
-        const CASOS = [
+        /* Dos preguntas distintas, con dos enunciados distintos. Confundirlas
+         * enseña algo falso:
+         *
+         *   "¿Cómo se dice «yo»?" → I           traducir un pronombre
+         *   "¿Qué pronombre reemplaza a «mis padres»?" → they
+         *
+         * Preguntar "¿cómo se dice «mis padres»?" y esperar "they" está mal:
+         * "mis padres" se dice "my parents". "They" es el pronombre que los
+         * reemplaza, que es otra cosa. Con el enunciado equivocado alguien
+         * acaba creyendo que "parents" se traduce "they".
+         */
+        const PRONOMBRES = [
           { es: "yo", ok: "I", otras: ["you", "he", "we"] },
           { es: "tú", ok: "you", otras: ["I", "he", "they"] },
+          { es: "usted", ok: "you", otras: ["he", "she", "they"] },
           { es: "él", ok: "he", otras: ["she", "it", "you"] },
           { es: "ella", ok: "she", otras: ["he", "it", "they"] },
           { es: "nosotros", ok: "we", otras: ["they", "you", "I"] },
           { es: "ellos", ok: "they", otras: ["we", "you", "he"] },
+          { es: "ellas", ok: "they", otras: ["we", "she", "you"] },
           { es: "ustedes", ok: "you", otras: ["they", "we", "he"] },
-          { es: "el auto (una cosa)", ok: "it", otras: ["he", "she", "they"], porque: "las cosas son it, no he ni she" },
-          { es: "el perro (un animal)", ok: "it", otras: ["he", "she", "we"], porque: "los animales son it" },
-          { es: "mi hermana", ok: "she", otras: ["he", "it", "they"] },
-          { es: "mi jefe (hombre)", ok: "he", otras: ["she", "it", "we"] },
+        ];
+        const SUSTANTIVOS = [
+          { es: "el auto", ok: "it", otras: ["he", "she", "they"], porque: "las cosas son it, nunca he ni she" },
+          { es: "el perro", ok: "it", otras: ["he", "she", "we"], porque: "los animales son it" },
+          { es: "mi hermana", ok: "she", otras: ["he", "it", "they"], porque: "una mujer es she" },
+          { es: "mi jefe", ok: "he", otras: ["she", "it", "we"], porque: "un hombre es he" },
           { es: "las facturas", ok: "they", otras: ["it", "we", "she"], porque: "varias cosas son they" },
           { es: "mi computador", ok: "it", otras: ["he", "they", "she"], porque: "las cosas son it" },
-          { es: "mis padres", ok: "they", otras: ["we", "you", "he"] },
+          { es: "mis padres", ok: "they", otras: ["we", "you", "he"], porque: "varias personas son they" },
+          { es: "María y yo", ok: "we", otras: ["they", "you", "she"], porque: "alguien más y yo somos we" },
+          { es: "la reunión", ok: "it", otras: ["she", "he", "they"], porque: "las cosas son it" },
+          { es: "mis hermanos", ok: "they", otras: ["we", "he", "you"], porque: "varias personas son they" },
         ];
-        const CONTEXTOS = [
-          { en: "___ work here.", es: "@ trabaja(n) acá." },
-          { en: "___ are ready.", es: "@ está(n) listo(s)." },
-          { en: "___ is my friend.", es: "@ es mi amigo." },
-          { en: "Where is ___?", es: "¿Dónde está @?" },
-        ];
-        const c = alAzar(CASOS, rnd);
-        // Frases sueltas la mitad de las veces y en contexto la otra mitad:
-        // reconocer el pronombre aislado es más fácil que ponerlo en su sitio.
-        const suelto = (rnd || Math.random)() < 0.5;
+
+        const traducir = (rnd || Math.random)() < 0.5;
+        const c = alAzar(traducir ? PRONOMBRES : SUSTANTIVOS, rnd);
         return {
-          frase: suelto ? "___" : "___ …",
-          es: "¿Cómo se dice “" + c.es + "”?",
+          frase: "___",
+          es: traducir
+            ? "¿Cómo se dice “" + c.es + "”?"
+            : "¿Qué pronombre reemplaza a “" + c.es + "”?",
           opciones: barajar([c.ok].concat(c.otras.slice(0, 3)), rnd),
           ok: c.ok,
           porque: c.porque || (c.es + " → " + c.ok),
@@ -369,11 +417,11 @@
       clave: "he, she, it → el verbo lleva -s. Nadie más.",
       error: { mal: "She work in an office.", bien: "She works in an office." },
       generar: function (rnd) {
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const v = alAzar(VERBOS, rnd);
         return {
           frase: s.en + " ___ " + v.obj + ".",
-          es: "(" + v.es + ") " + s.es + "…",
+          es: apoyo(s.es, v),
           opciones: barajar([v.base, v.tercera], rnd),
           ok: s.tercera ? v.tercera : v.base,
           porque: s.tercera
@@ -409,13 +457,13 @@
       clave: "Si hay does o doesn't, el verbo va sin -s.",
       error: { mal: "Does she works here?", bien: "Does she work here?" },
       generar: function (rnd) {
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const v = alAzar(VERBOS, rnd);
         const pregunta = (rnd || Math.random)() < 0.5;
         if (pregunta) {
           return {
-            frase: "___ " + s.en.toLowerCase() + " " + v.base + " " + v.obj + "?",
-            es: "¿" + s.es + " " + v.es + "…?",
+            frase: "___ " + enMinusculas(s.en) + " " + v.base + " " + v.obj + "?",
+            es: "¿" + mayuscula(s.es) + " ___ " + v.objEs + "? (" + v.es + ")",
             opciones: ["Do", "Does"],
             ok: s.tercera ? "Does" : "Do",
             porque: s.tercera ? s.en + " → Does" : s.en + " → Do",
@@ -423,7 +471,7 @@
         }
         return {
           frase: s.en + " ___ " + v.base + " " + v.obj + ".",
-          es: s.es + " no " + v.es + "…",
+          es: apoyo(s.es, v, null, true),
           opciones: ["don't", "doesn't"],
           ok: s.tercera ? "doesn't" : "don't",
           porque:
@@ -466,7 +514,7 @@
       clave: "be + -ing. El be no se salta nunca.",
       error: { mal: "I working now.", bien: "I am working now." },
       generar: function (rnd) {
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const v = alAzar(VERBOS, rnd);
         const deForma = (rnd || Math.random)() < 0.5;
         if (deForma) {
@@ -480,7 +528,7 @@
           void malas;
           return {
             frase: s.en + " " + s.be + " ___ " + v.obj + " now.",
-            es: "(" + v.es + ") " + s.es + " está…",
+            es: apoyo(s.es, v, "ahora mismo"),
             opciones: barajar(op, rnd),
             ok: v.ing,
             porque: v.base + " → " + v.ing,
@@ -488,7 +536,7 @@
         }
         return {
           frase: s.en + " ___ " + v.ing + " " + v.obj + " now.",
-          es: s.es + " está " + v.es + "… ahora.",
+          es: apoyo(s.es, v, "ahora mismo"),
           opciones: ["am", "is", "are"],
           ok: s.be,
           porque: "Hace falta be, y con " + s.en + " es " + s.be,
@@ -530,7 +578,7 @@
       generar: function (rnd) {
         const regulares = VERBOS.filter(function (v) { return !v.irregular; });
         const v = alAzar(regulares, rnd);
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const op = [v.pas];
         if (v.base + "ed" !== v.pas) op.push(v.base + "ed");
         if (/y$/.test(v.base)) op.push(v.base.slice(0, -1) + "ied");
@@ -539,7 +587,7 @@
         op.forEach(function (x) { if (unicas.indexOf(x) < 0 && unicas.length < 3) unicas.push(x); });
         return {
           frase: s.en + " ___ " + v.obj + " last week.",
-          es: "(" + v.es + ") " + s.es + "… la semana pasada.",
+          es: apoyo(s.es, v, "la semana pasada"),
           opciones: barajar(unicas, rnd),
           ok: v.pas,
           porque: v.base + " → " + v.pas,
@@ -580,10 +628,10 @@
       generar: function (rnd) {
         const irr = VERBOS.filter(function (v) { return v.irregular; });
         const v = alAzar(irr, rnd);
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         return {
           frase: s.en + " ___ " + v.obj + " yesterday.",
-          es: "(" + v.es + ") " + s.es + "… ayer.",
+          es: apoyo(s.es, v, "ayer"),
           opciones: barajar([v.pas, v.base + "ed", v.base], rnd),
           ok: v.pas,
           porque: v.base + " es irregular: su pasado es " + v.pas + ", no " + v.base + "ed",
@@ -618,12 +666,12 @@
       error: { mal: "Did you went to the meeting?", bien: "Did you go to the meeting?" },
       generar: function (rnd) {
         const v = alAzar(VERBOS, rnd);
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const pregunta = (rnd || Math.random)() < 0.5;
         if (pregunta) {
           return {
-            frase: "Did " + s.en.toLowerCase() + " ___ " + v.obj + "?",
-            es: "¿" + s.es + " " + v.es + "… ?",
+            frase: "Did " + enMinusculas(s.en) + " ___ " + v.obj + "?",
+            es: "¿" + mayuscula(s.es) + " ___ " + v.objEs + "? (" + v.es + ", en pasado)",
             opciones: barajar([v.base, v.pas], rnd),
             ok: v.base,
             porque: "Después de did el verbo va en base: " + v.base + ", no " + v.pas,
@@ -631,7 +679,7 @@
         }
         return {
           frase: s.en + " didn't ___ " + v.obj + ".",
-          es: s.es + " no " + v.es + "…",
+          es: apoyo(s.es, v, "(en pasado)", true),
           opciones: barajar([v.base, v.pas], rnd),
           ok: v.base,
           porque: "Después de didn't el verbo va en base: " + v.base,
@@ -670,12 +718,12 @@
       error: { mal: "She will works tomorrow.", bien: "She will work tomorrow." },
       generar: function (rnd) {
         const v = alAzar(VERBOS, rnd);
-        const s = alAzar(SUJETOS, rnd);
+        const s = sujetoVivo(rnd);
         const deForma = (rnd || Math.random)() < 0.5;
         if (deForma) {
           return {
             frase: s.en + " will ___ " + v.obj + " tomorrow.",
-            es: "(" + v.es + ") " + s.es + "… mañana.",
+            es: apoyo(s.es, v, "mañana"),
             opciones: barajar([v.base, v.tercera, "to " + v.base], rnd),
             ok: v.base,
             porque: "Después de will el verbo va en base, sin -s y sin to: " + v.base,
@@ -683,7 +731,7 @@
         }
         return {
           frase: s.en + " ___ going to " + v.base + " " + v.obj + ".",
-          es: s.es + " va a " + v.es + "…",
+          es: apoyo(s.es, v, "(plan ya decidido)"),
           opciones: ["am", "is", "are"],
           ok: s.be,
           porque: "going to lleva be delante, y con " + s.en + " es " + s.be,
@@ -952,27 +1000,27 @@
       error: { mal: "two reds cars", bien: "two red cars" },
       generar: function (rnd) {
         const casos = [
-          { s: "car", p: "cars" }, { s: "box", p: "boxes", porque: "termina en x → -es" },
-          { s: "company", p: "companies", porque: "consonante + y → -ies" },
-          { s: "day", p: "days", porque: "vocal + y → sólo -s" },
-          { s: "watch", p: "watches", porque: "termina en ch → -es" },
-          { s: "child", p: "children", porque: "irregular" },
-          { s: "person", p: "people", porque: "irregular" },
-          { s: "invoice", p: "invoices" }, { s: "country", p: "countries", porque: "consonante + y → -ies" },
-          { s: "office", p: "offices" }, { s: "man", p: "men", porque: "irregular" },
-          { s: "address", p: "addresses", porque: "termina en s → -es" },
-          { s: "woman", p: "women", porque: "irregular" }, { s: "foot", p: "feet", porque: "irregular" },
-          { s: "city", p: "cities", porque: "consonante + y → -ies" },
-          { s: "boss", p: "bosses", porque: "termina en s → -es" },
-          { s: "key", p: "keys", porque: "vocal + y → sólo -s" },
-          { s: "family", p: "families", porque: "consonante + y → -ies" },
-          { s: "dish", p: "dishes", porque: "termina en sh → -es" },
-          { s: "tax", p: "taxes", porque: "termina en x → -es" },
-          { s: "price", p: "prices" }, { s: "client", p: "clients" },
-          { s: "delivery", p: "deliveries", porque: "consonante + y → -ies" },
-          { s: "church", p: "churches", porque: "termina en ch → -es" },
-          { s: "tooth", p: "teeth", porque: "irregular" },
-          { s: "holiday", p: "holidays", porque: "vocal + y → sólo -s" },
+          { s: "car", p: "cars" , esp: "autos" }, { s: "box", p: "boxes", porque: "termina en x → -es" , esp: "cajas" },
+          { s: "company", p: "companies", porque: "consonante + y → -ies" , esp: "empresas" },
+          { s: "day", p: "days", porque: "vocal + y → sólo -s" , esp: "días" },
+          { s: "watch", p: "watches", porque: "termina en ch → -es" , esp: "relojes" },
+          { s: "child", p: "children", porque: "irregular" , esp: "niños" },
+          { s: "person", p: "people", porque: "irregular" , esp: "personas" },
+          { s: "invoice", p: "invoices" , esp: "facturas" }, { s: "country", p: "countries", porque: "consonante + y → -ies" , esp: "países" },
+          { s: "office", p: "offices" , esp: "oficinas" }, { s: "man", p: "men", porque: "irregular" , esp: "hombres" },
+          { s: "address", p: "addresses", porque: "termina en s → -es" , esp: "direcciones" },
+          { s: "woman", p: "women", porque: "irregular" , esp: "mujeres" }, { s: "foot", p: "feet", porque: "irregular" , esp: "pies" },
+          { s: "city", p: "cities", porque: "consonante + y → -ies" , esp: "ciudades" },
+          { s: "boss", p: "bosses", porque: "termina en s → -es" , esp: "jefes" },
+          { s: "key", p: "keys", porque: "vocal + y → sólo -s" , esp: "llaves" },
+          { s: "family", p: "families", porque: "consonante + y → -ies" , esp: "familias" },
+          { s: "dish", p: "dishes", porque: "termina en sh → -es" , esp: "platos" },
+          { s: "tax", p: "taxes", porque: "termina en x → -es" , esp: "impuestos" },
+          { s: "price", p: "prices" , esp: "precios" }, { s: "client", p: "clients" , esp: "clientes" },
+          { s: "delivery", p: "deliveries", porque: "consonante + y → -ies" , esp: "entregas" },
+          { s: "church", p: "churches", porque: "termina en ch → -es" , esp: "iglesias" },
+          { s: "tooth", p: "teeth", porque: "irregular" , esp: "dientes" },
+          { s: "holiday", p: "holidays", porque: "vocal + y → sólo -s" , esp: "feriados" },
         ];
         const c = alAzar(casos, rnd);
         const op = [c.p];
@@ -982,7 +1030,7 @@
         op.forEach(function (x) { if (unicas.indexOf(x) < 0 && unicas.length < 3) unicas.push(x); });
         return {
           frase: "We have three ___.",
-          es: "Tenemos tres " + c.s + "…",
+          es: "Tenemos tres " + (c.esp || c.s) + ".",
           opciones: barajar(unicas, rnd),
           ok: c.p,
           porque: c.s + " → " + c.p + (c.porque ? " (" + c.porque + ")" : ""),

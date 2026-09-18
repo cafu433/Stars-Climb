@@ -1355,3 +1355,219 @@ h3 { font-size: .98rem; font-weight: 700; letter-spacing: -.008em; }
    cosas igual de fuerte es no ofrecer ninguna. */
 .seguir + .seguir { border-left-color: var(--borde-fuerte); }
 .seguir + .seguir .btn { background: transparent; color: var(--azul); border: 1px solid var(--borde-fuerte); }
+
+/* ==========================================================================
+   Pantalla ancha: el índice a la izquierda, fijo
+   ==========================================================================
+   En un computador la columna de 520 px dejaba media pantalla vacía a cada
+   lado y obligaba a volver atrás para ver qué venía después. Con el temario
+   siempre a la vista se estudia sabiendo dónde se está.
+
+   En el teléfono esto no existe: ahí una columna lateral se comería el ancho
+   que necesita lo que se está leyendo. */
+
+.lateral { display: none; }
+
+@media (min-width: 900px) {
+  #app {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    align-items: start;
+    gap: 0;
+  }
+
+  .lateral {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 1px solid var(--borde);
+    padding: 22px 18px 30px;
+  }
+
+  .principal { min-width: 0; }
+  .contenido { padding: 0 32px 60px; }
+  .nav { display: none; }
+
+  /* El índice de la pestaña Curso sobra cuando ya está en la columna: repetir
+     el mismo árbol dos veces en la misma pantalla no informa, distrae. */
+  .principal .nivel .unidad,
+  .principal .nivel .examen-fila { display: none; }
+}
+
+@media (min-width: 1240px) {
+  #app { grid-template-columns: 320px minmax(0, 1fr); }
+}
+
+.marca {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin-bottom: 18px;
+}
+
+.lateral-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 24px;
+}
+.lateral-secciones button {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: .92rem;
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+.lateral-secciones button:hover { background: var(--fondo-2); color: var(--tinta); }
+.lateral-secciones button.activa {
+  background: var(--azul-suave);
+  color: var(--azul);
+  font-weight: 650;
+}
+
+/* --- El árbol --- */
+.arbol-nivel { margin-bottom: 18px; }
+.arbol-nivel.cerrado { opacity: .45; }
+.arbol-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  padding: 0 10px 6px;
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: 4px;
+}
+
+.arbol-unidad {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: .88rem;
+  color: inherit;
+  cursor: pointer;
+}
+.arbol-unidad:hover { background: var(--fondo-2); }
+.arbol-unidad.abierta { font-weight: 650; }
+.arbol-unidad .t { flex: 1 1 auto; min-width: 0; }
+.arbol-unidad .flecha { font-size: 15px; }
+
+.arbol-lecciones {
+  display: flex;
+  flex-direction: column;
+  /* La línea marca la jerarquía mejor que la sangría sola: se ve de un vistazo
+     dónde empieza y dónde acaba lo que cuelga de la unidad. */
+  border-left: 1px solid var(--borde);
+  margin: 2px 0 6px 19px;
+  padding-left: 4px;
+}
+.arbol-leccion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: .84rem;
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+.arbol-leccion:hover { background: var(--fondo-2); color: var(--tinta); }
+.arbol-leccion .punto { flex: 0 0 .7em; color: var(--verde); font-weight: 700; }
+.arbol-leccion.hecha { color: var(--tinta-2); }
+
+/* ==========================================================================
+   El diccionario, a la derecha
+   ==========================================================================
+   Aparece sólo cuando hay sitio de sobra. En un teléfono robaría el ancho que
+   necesita lo que se está leyendo, y ahí ya está resuelto de otra forma: se
+   toca la palabra. */
+
+.buscador { display: none; }
+
+@media (min-width: 1240px) {
+  #app { max-width: 1500px; grid-template-columns: 300px minmax(0, 1fr) 300px; }
+  .buscador {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--borde);
+    padding: 22px 18px 30px;
+  }
+}
+
+.buscador .campo { min-height: auto; padding: 10px 12px; font-size: .92rem; }
+
+.dic-ficha {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.dic-cab { display: flex; align-items: center; gap: 10px; }
+.dic-cab b { flex: 1 1 auto; font-size: 1.12rem; word-break: break-word; }
+.dic-es { font-size: 1rem; margin: 4px 0 6px; }
+.dic-ficha .mini + .mini { margin-top: 5px; }
+
+.dic-titulo { margin: 20px 0 6px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+.dic-linea {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--borde);
+  font-size: .9rem;
+}
+.dic-linea .mini { flex: 1 1 auto; min-width: 0; }
+.icono-btn.chico { font-size: 14px; padding: 2px 4px; min-height: auto; }
+
+/* --- La lección en pantalla ancha ---
+   Estaba pensada sólo para teléfono: en un monitor el contenido se pegaba a la
+   izquierda y las opciones se estiraban a lo ancho de toda la pantalla, que es
+   incómodo de leer y se ve roto. */
+@media (min-width: 760px) {
+  .leccion-caja {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .leccion .pie {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .leccion .barra {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* El botón secundario, centrado bajo el principal. Suelto a la izquierda
+   parecía un resto de otra maqueta. */
+.pie [data-accion="no-se"] { display: block; margin-left: auto; margin-right: auto; }

@@ -24,13 +24,158 @@
 
   function pintar() {
     if (!raiz) raiz = d.$("#app");
+    /* En pantalla ancha el índice se va a una columna fija a la izquierda y el
+     * contenido queda a la derecha. En el teléfono no existe: ahí la columna
+     * lateral se come el ancho que necesita lo que se está leyendo, y el
+     * índice ya vive en la pestaña Curso.
+     *
+     * Se dibujan siempre los dos y es el CSS el que decide cuál se ve. Así no
+     * hay que volver a dibujar la pantalla al girar el teléfono ni al cambiar
+     * el tamaño de la ventana. */
     raiz.innerHTML =
+      lateral() +
+      '<main class="principal">' +
       barraSuperior() +
       '<div class="contenido">' + contenido() + "</div>" +
+      "</main>" +
+      buscador() +
       navegacion();
+    // El buscador conserva lo que hubiera escrito: redibujar la pantalla no
+    // puede borrarle la consulta a medio escribir.
+    const campo = d.$("#dic-campo", raiz);
+    if (campo && ultimaBusqueda) campo.value = ultimaBusqueda;
     // Volver arriba al cambiar de pestaña: si no, la pestaña nueva aparece
     // scrolleada a la mitad y parece rota.
     window.scrollTo(0, 0);
+  }
+
+  /* ---------------- Columna lateral (sólo pantalla ancha) ---------------- */
+
+  function lateral() {
+    let out =
+      '<aside class="lateral">' +
+      '<div class="marca">Stars Climb</div>' +
+      '<nav class="lateral-secciones">' +
+      TABS.map(function (t) {
+        return '<button class="' + (tab === t.id && !vista ? "activa" : "") +
+          '" data-accion="tab" data-tab="' + t.id + '">' + t.nombre + "</button>";
+      }).join("") +
+      "</nav>";
+
+    // El árbol del curso. Es la razón de ser de la columna: tener el temario
+    // entero a la vista mientras se estudia, en vez de tener que volver atrás
+    // para saber qué viene después.
+    out += '<div class="arbol">';
+    APP.curriculo.NIVELES.forEach(function (n) {
+      const abierto = APP.examen.abierto(n.id);
+      const ls = APP.curriculo.leccionesDelNivel(n.id);
+      const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+
+      out +=
+        '<div class="arbol-nivel' + (abierto ? "" : " cerrado") + '">' +
+        '<div class="arbol-cab">' + d.esc(n.titulo) +
+        '<span class="mini apagado">' + hechas + "/" + ls.length + "</span></div>";
+
+      if (abierto) {
+        APP.curriculo.delNivel(n.id).forEach(function (u) {
+          const uHechas = u.lecciones.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+          const desplegada = desplegadas[u.id];
+          out +=
+            '<button class="arbol-unidad' + (desplegada ? " abierta" : "") +
+            '" data-accion="desplegar" data-id="' + u.id + '">' +
+            '<span class="flecha' + (desplegada ? " abierta" : "") + '">›</span>' +
+            '<span class="t">' + d.esc(u.titulo) + "</span>" +
+            '<span class="mini apagado">' + uHechas + "/" + u.lecciones.length + "</span>" +
+            "</button>";
+          if (!desplegada) return;
+          out += '<div class="arbol-lecciones">';
+          u.lecciones.forEach(function (l) {
+            const hecha = A().leccion(l.id).coronas > 0;
+            out +=
+              '<button class="arbol-leccion' + (hecha ? " hecha" : "") +
+              '" data-accion="leccion" data-id="' + l.id + '">' +
+              '<span class="punto">' + (hecha ? "•" : "") + "</span>" +
+              d.esc(l.titulo) + "</button>";
+          });
+          out += "</div>";
+        });
+      }
+      out += "</div>";
+    });
+    out += "</div></aside>";
+    return out;
+  }
+
+  /* ---------------- Diccionario, a la derecha ----------------
+   *
+   * Tocar una palabra sirve mientras lees. Esto es la otra mitad: la pregunta
+   * de quien escribe, que es la contraria —"¿cómo se dice factura?"—. Busca en
+   * los dos sentidos sin preguntar en cuál: si lo que escribes existe en
+   * inglés te da su significado, y si no, lo busca como español.
+   *
+   * Funciona sin internet, igual que el resto.
+   */
+  let ultimaBusqueda = "";
+
+  function buscador() {
+    return (
+      '<aside class="buscador">' +
+      '<div class="marca">Diccionario</div>' +
+      '<input class="campo" id="dic-campo" type="search" autocomplete="off" ' +
+      'autocapitalize="off" spellcheck="false" placeholder="palabra en inglés o español">' +
+      '<div class="mini apagado" style="margin-top:6px">Funciona sin internet.</div>' +
+      '<div id="dic-resultado"></div>' +
+      "</aside>"
+    );
+  }
+
+  function pintarBusqueda(texto) {
+    ultimaBusqueda = texto;
+    const caja = d.$("#dic-resultado", raiz);
+    if (!caja) return;
+
+    const q = String(texto || "").trim();
+    if (q.length < 2) { caja.innerHTML = ""; return; }
+
+    const r = APP.diccionario.buscarLibre(q);
+    let out = "";
+
+    if (r.en) {
+      const def = r.en;
+      const etiquetas = [];
+      if (def.clase) etiquetas.push(def.clase);
+      if (def.forma && def.forma !== "base") etiquetas.push(def.forma);
+      if (def.derivadaDe) etiquetas.push("de “" + def.derivadaDe + "”");
+      out +=
+        '<div class="dic-ficha">' +
+        '<div class="dic-cab"><b>' + d.esc(def.en) + "</b>" +
+        '<button class="btn azul chico" data-accion="audio" data-texto="' + d.esc(def.en) + '">🔊</button></div>' +
+        '<div class="dic-es">' + d.esc(def.es) + "</div>" +
+        (etiquetas.length
+          ? '<div class="mini apagado">' + d.esc(etiquetas.join(" · ")) + "</div>"
+          : "") +
+        (def.nota ? '<div class="mini">💡 ' + d.esc(def.nota) + "</div>" : "") +
+        "</div>";
+    }
+
+    if (r.es.length) {
+      out += '<div class="mini apagado dic-titulo">En inglés se dice</div>';
+      r.es.forEach(function (x) {
+        out +=
+          '<div class="dic-linea">' +
+          '<button class="enlace" data-accion="palabra" data-palabra="' + d.esc(x.en) + '">' +
+          d.esc(x.en) + "</button>" +
+          '<span class="mini apagado">' + d.esc(x.es) + "</span>" +
+          '<button class="icono-btn chico" data-accion="audio" data-texto="' + d.esc(x.en) + '" aria-label="Oír">🔊</button>' +
+          "</div>";
+      });
+    }
+
+    if (!out) {
+      out = '<p class="mini apagado" style="margin-top:14px">No está en el curso. ' +
+        "El curso tiene unas mil palabras: si buscas algo muy específico, puede que no esté.</p>";
+    }
+    caja.innerHTML = out;
   }
 
   /* ---------------- Barra superior ---------------- */
@@ -1925,6 +2070,7 @@
     });
 
     raiz.addEventListener("input", function (ev) {
+      if (ev.target.id === "dic-campo") return pintarBusqueda(ev.target.value);
       if (ev.target.getAttribute("data-accion") === "velocidad") {
         A().estado().ajustes.velocidad = parseFloat(ev.target.value);
         A().guardar();

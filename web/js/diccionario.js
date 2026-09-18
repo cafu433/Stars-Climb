@@ -158,6 +158,65 @@
     return null;
   }
 
+  /* Buscar al revés: del español al inglés.
+   *
+   * Es la mitad que faltaba. Tocar una palabra sirve cuando estás leyendo,
+   * pero la pregunta más frecuente de quien escribe es la contraria: "¿cómo se
+   * dice factura?". Sin esto había que salir de la aplicación a buscarlo.
+   *
+   * Se buscan las traducciones enteras y también sus trozos, porque muchas
+   * están escritas como "boleta, recibo" o "encargarse de": quien escribe
+   * "recibo" tiene que encontrarla igual.
+   */
+  function buscarEs(texto) {
+    const idx = construir();
+    const q = String(texto || "").toLowerCase().trim();
+    if (q.length < 2) return [];
+
+    const exactas = [];
+    const empiezan = [];
+    const contienen = [];
+    const vistos = {};
+
+    Object.keys(idx).forEach(function (k) {
+      const f = idx[k];
+
+      /* Las formas de un verbo comparten traducción, así que buscar "trabajar"
+       * devolvía work, works, worked y working: cuatro resultados que son el
+       * mismo verbo y que no ayudan a elegir. Se muestra sólo el infinitivo;
+       * las demás formas se encuentran buscando en inglés, que es cuando
+       * importan. */
+      if (f.de === "verbo" && f.forma !== "base") return;
+
+      // Y los plurales, por lo mismo: "facturas" al lado de "factura" no
+      // informa de nada.
+      const clave = f.verbo || f.en;
+      if (vistos[clave]) return;
+
+      const es = String(f.es || "").toLowerCase();
+      if (!es) return;
+      const trozos = es.split(/[,;]\s*/);
+
+      if (trozos.indexOf(q) >= 0) { vistos[clave] = true; exactas.push(f); return; }
+      if (trozos.some(function (t) { return t.indexOf(q) === 0; })) {
+        vistos[clave] = true; empiezan.push(f); return;
+      }
+      if (es.indexOf(q) >= 0) { vistos[clave] = true; contienen.push(f); }
+    });
+
+    // Lo exacto primero: quien escribe "casa" quiere "house", no "en la casa".
+    return exactas.concat(empiezan, contienen).slice(0, 12);
+  }
+
+  /* Una búsqueda que no sabe de antemano en qué idioma viene. Se prueba primero
+   * como inglés —es una sola consulta y es lo más común mientras se lee— y si
+   * no hay nada, como español. */
+  function buscarLibre(texto) {
+    const q = String(texto || "").trim();
+    if (!q) return { en: null, es: [] };
+    return { en: buscar(q), es: buscarEs(q) };
+  }
+
   /* Expresiones que empiezan por esta palabra: tocando "look" conviene ofrecer
    * también "look for" y "look after", porque significan otra cosa y es
    * exactamente donde se equivoca un hispanohablante. */
@@ -220,6 +279,8 @@
 
   APP.diccionario = {
     buscar: buscar,
+    buscarEs: buscarEs,
+    buscarLibre: buscarLibre,
     ficha: ficha,
     trocear: trocear,
     expresionesCon: expresionesCon,

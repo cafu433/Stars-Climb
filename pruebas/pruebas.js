@@ -977,6 +977,80 @@ prueba("los ejercicios de gramática traen una sola respuesta correcta", functio
   igual(malos.slice(0, 5), []);
 });
 
+prueba("“I” siempre va con mayúscula, también dentro de una pregunta", function () {
+  /* La aplicación enseña esta regla con todas sus letras y después escribía
+   * "Did i finish at five?" al meter el sujeto en medio de una pregunta.
+   * Enseñar una regla y romperla en el ejercicio siguiente es peor que no
+   * enseñarla: quien la lea con atención concluye que la regla no es cierta.
+   */
+  const malas = [];
+  APP.datosReglas.REGLAS.forEach(function (r) {
+    for (let i = 0; i < 400; i++) {
+      const e = r.generar();
+      if (/(^|[^A-Za-z])i([^A-Za-z]|$)/.test(e.frase)) malas.push(r.id + ": " + e.frase);
+    }
+  });
+  igual(Array.from(new Set(malas)).slice(0, 3), []);
+});
+
+prueba("las cosas no hacen cosas de personas", function () {
+  /* "The invoices are playing tennis" es gramaticalmente impecable y no
+   * significa nada. En un ejercicio de gramática eso no es gracioso: hace
+   * dudar de si uno entendió mal la frase, en vez de pensar en la regla. */
+  const malas = [];
+  APP.datosReglas.REGLAS.forEach(function (r) {
+    for (let i = 0; i < 500; i++) {
+      const e = r.generar();
+      if (/^The invoices .*(play|take the bus|watch|buy|write|call|study|make coffee|go to)/.test(e.frase)) {
+        malas.push(r.id + ": " + e.frase);
+      }
+    }
+  });
+  igual(Array.from(new Set(malas)).slice(0, 3), []);
+});
+
+prueba("la ayuda en español está en español y se entiende", function () {
+  /* Antes decía cosas como "ella no vivir…", "(tomar) mi hermana…" o
+   * "Tenemos tres church…". Una ayuda que no se entiende no ayuda, y encima
+   * hace dudar de si el resto del ejercicio está bien. */
+  const malas = [];
+  APP.datosReglas.REGLAS.forEach(function (r) {
+    for (let i = 0; i < 400; i++) {
+      const es = r.generar().es;
+      if (!es) { malas.push(r.id + ": sin ayuda"); continue; }
+      if (es.indexOf("…") >= 0) malas.push(r.id + ": queda cortada → " + es);
+      if (/undefined/.test(es)) malas.push(r.id + ": undefined → " + es);
+      // Cierra en punto, en interrogación o en el paréntesis del infinitivo:
+      // "Mi hermana ___ el informe. (enviar)".
+      if (!/[.?»”)]$/.test(es.trim())) malas.push(r.id + ": queda a medias → " + es);
+    }
+  });
+  igual(Array.from(new Set(malas)).slice(0, 3), []);
+});
+
+prueba("una pregunta pide exactamente lo que su respuesta contesta", function () {
+  /* El fallo que lo destapó: "¿Cómo se dice «mis padres»?" con respuesta
+   * "they". "Mis padres" se dice "my parents"; "they" es el pronombre que los
+   * reemplaza. Con el enunciado equivocado alguien acaba creyendo que
+   * "parents" se traduce "they", que es justamente aprender mal.
+   */
+  const malas = [];
+  const r = APP.datosReglas.regla("pronombres");
+  for (let i = 0; i < 600; i++) {
+    const e = r.generar();
+    const traduce = e.es.indexOf("Cómo se dice") >= 0;
+    /* Con frontera de palabra: sin ella, "ella" y "ellos" empiezan por "el" y
+     * se tomaban por sustantivos. Es el mismo tipo de error que la prueba
+     * vigila, sólo que en la prueba. */
+    const sustantivo = /“(el|la|los|las|mi|mis|María)\b/.test(e.es);
+    // "¿Cómo se dice X?" sólo puede preguntar por un pronombre.
+    if (traduce && sustantivo) malas.push(e.es + " → " + e.ok);
+    // Y "¿qué pronombre reemplaza a X?" sólo por un sustantivo.
+    if (!traduce && !sustantivo) malas.push(e.es + " → " + e.ok);
+  }
+  igual(Array.from(new Set(malas)).slice(0, 3), []);
+});
+
 /* ---------------- Exámenes y nivelación ---------------- */
 
 prueba("el examen de cada nivel mide las cuatro destrezas", function () {
