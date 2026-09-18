@@ -26,11 +26,26 @@
     // para decidir cuál de dos copias manda en los datos que no se pueden
     // fusionar (los ajustes, por ejemplo: o son unos o son otros).
     guardadoEn: 0,
+    /* xp, racha, vidas, logros y desafio ya no se usan en ninguna pantalla: la
+     * capa de juego se quitó entera. Se siguen guardando y fusionando por una
+     * razón concreta: el progreso que ya está en los teléfonos y en las cuentas
+     * los trae, y borrarlos de la fusión los perdería sin avisar. No cuestan
+     * nada y algún día pueden servir para responder "¿cuánto llevabas antes?".
+     */
     xp: 0,
     // XP por día, en formato AAAA-MM-DD. Alimenta la meta diaria, la racha y
     // el gráfico de la semana; guardar el detalle en vez de sólo el total
     // permite dibujar la semana sin ningún cálculo extra.
     xpPorDia: {},
+    /* Minutos de estudio por día. Reemplaza al XP como medida de avance, y no
+     * es un cambio cosmético: los puntos miden cuánto has tocado la pantalla y
+     * los minutos miden cuánto has estudiado. Se puede juntar mucho XP
+     * contestando rápido cosas que ya sabías.
+     *
+     * Se guarda igual que xpPorDia —repartido por día y por aparato— para que
+     * practicar en el teléfono y en el computador el mismo día sume, en vez de
+     * que uno pise al otro. */
+    minutosPorDia: {},
     metaDiaria: 30,
     racha: { dias: 0, ultimoDia: null, mejor: 0, escudos: 2 },
     vidas: { n: 5, desde: null },
@@ -301,6 +316,37 @@
     }, 0);
   }
 
+  /* ---------------- Tiempo de estudio ---------------- */
+
+  function sumarMinutos(n) {
+    if (!n || n <= 0) return;
+    const e = estado();
+    const d = hoy();
+    e.minutosPorDia[d] = sumarEnAparato(e.minutosPorDia[d], n);
+    // Los días estudiados salen de acá, así que anotar el minuto es también
+    // anotar el día: no hay dos contadores que se puedan desincronizar.
+    guardar();
+  }
+
+  function minutosDelDia(dia) {
+    return totalContador(estado().minutosPorDia[dia || hoy()]);
+  }
+
+  function minutosTotales() {
+    return sumaDeTodo(estado().minutosPorDia);
+  }
+
+  function minutosDeLaSemana() {
+    let total = 0;
+    for (let i = 0; i < 7; i++) total += minutosDelDia(diaMas(hoy(), -i));
+    return total;
+  }
+
+  function diasEstudiados() {
+    const m = estado().minutosPorDia;
+    return Object.keys(m).filter(function (d) { return totalContador(m[d]) > 0; }).length;
+  }
+
   function xpDeHoy() {
     return xpDelDia(hoy());
   }
@@ -351,7 +397,7 @@
     const out = [];
     for (let i = 6; i >= 0; i--) {
       const f = diaMas(d, -i);
-      out.push({ fecha: f, xp: totalContador(e.xpPorDia[f]) });
+      out.push({ fecha: f, xp: totalContador(e.xpPorDia[f]), minutos: totalContador(e.minutosPorDia[f]) });
     }
     return out;
   }
@@ -605,6 +651,7 @@
       // y así no puede quedar desfasado.
       xp: totalFusionado === 0 ? maximo(a.xp, b.xp) : totalFusionado,
       xpPorDia: xpFusionado,
+      minutosPorDia: fusionarRepartidos(a.minutosPorDia, b.minutosPorDia),
       metaDiaria: reciente.metaDiaria,
 
       racha: {
@@ -758,6 +805,11 @@
     perderVida: perderVida,
     llenarVidas: llenarVidas,
     sumarXp: sumarXp,
+    sumarMinutos: sumarMinutos,
+    minutosDelDia: minutosDelDia,
+    minutosTotales: minutosTotales,
+    minutosDeLaSemana: minutosDeLaSemana,
+    diasEstudiados: diasEstudiados,
     xpDeHoy: xpDeHoy,
     totalXp: totalXp,
     aparato: aparato,

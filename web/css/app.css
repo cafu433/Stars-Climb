@@ -12,55 +12,86 @@
  */
 
 :root {
-  --verde: #58cc02;
-  --verde-oscuro: #4aa802;
-  --verde-suave: #d7ffb8;
-  --azul: #1cb0f6;
-  --azul-oscuro: #1899d6;
-  --azul-suave: #ddf4ff;
-  --rojo: #ff4b4b;
-  --rojo-oscuro: #e03d3d;
-  --rojo-suave: #ffdfe0;
-  --dorado: #ffc800;
-  --morado: #ce82ff;
+  /* Paleta de cielo nocturno: el fondo es papel de día y cielo de noche, y el
+   * acento es la estrella. No hay verde. El verde manzana con el azul cielo de
+   * antes eran literalmente los de Duolingo, y con esos dos colores cualquier
+   * pantalla se parece a Duolingo aunque no tenga nada que ver.
+   *
+   * Los grises llevan una pizca de índigo: un gris puro al lado de un azul se
+   * ve sucio, y uno con la misma familia se ve elegido. */
+  --tinta: #1C1E2E;
+  --tinta-2: #5A5D75;
+  --fondo: #FBF9F5;
+  --fondo-2: #F2EEE6;
+  --papel: #FFFFFF;
+  --borde: #E2DED3;
+  --borde-fuerte: #CFC9BA;
 
-  --fondo: #ffffff;
-  --fondo-2: #f7f7f7;
-  --tinta: #3c3c3c;
-  --tinta-2: #777777;
-  --borde: #e5e5e5;
-  --borde-fuerte: #d0d0d0;
+  --azul: #4B5BAF;          /* el acento principal: índigo, no celeste */
+  --azul-oscuro: #3B4890;
+  --azul-suave: #E8EAF7;
+  --dorado: #B77400;        /* el de las estrellas, para lo conseguido */
+  --verde: #2F7D4F;         /* correcto. Verde bosque, no verde manzana */
+  --verde-oscuro: #26653F;
+  --verde-suave: #E3F2E9;
+  --rojo: #9A3B12;
+  --rojo-oscuro: #7E300E;
+  --rojo-suave: #FBEDE6;
+  --morado: #6D4AA8;
 
-  --radio: 16px;
-  --sombra-boton: 0 4px 0;
+  /* Esquinas más discretas y botones planos. La sombra dura de 4px por debajo
+   * —el botón que parece una tecla de goma— es la firma visual de Duolingo, y
+   * era lo primero que delataba de dónde venía esto. */
+  --radio: 10px;
+  --sombra-boton: 0 0 0;
   --seguro-abajo: env(safe-area-inset-bottom, 0px);
   --seguro-arriba: env(safe-area-inset-top, 0px);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="claro"]) {
-    --fondo: #131f24;
-    --fondo-2: #1b2c33;
-    --tinta: #f1f7fb;
-    --tinta-2: #90a3ad;
-    --borde: #2f4550;
-    --borde-fuerte: #3d5661;
-    --verde-suave: #1f3d13;
-    --azul-suave: #10323f;
-    --rojo-suave: #3d1618;
+    --tinta: #EDEBE3;
+    --tinta-2: #9A9DB5;
+    --fondo: #12141F;
+    --fondo-2: #1B1E2C;
+    --papel: #1A1D2B;
+    --borde: #2C3043;
+    --borde-fuerte: #3B4058;
+
+    --azul: #96A3EC;
+    --azul-oscuro: #7E8DDE;
+    --azul-suave: #232842;
+    --dorado: #F0B754;
+    --verde: #7BC493;
+    --verde-oscuro: #63AC7B;
+    --verde-suave: #1B2E22;
+    --rojo: #F0A882;
+    --rojo-oscuro: #D88E68;
+    --rojo-suave: #2E1D14;
+    --morado: #B49BE8;
   }
 }
 
 :root[data-tema="oscuro"] {
-  --fondo: #131f24;
-  --fondo-2: #1b2c33;
-  --tinta: #f1f7fb;
-  --tinta-2: #90a3ad;
-  --borde: #2f4550;
-  --borde-fuerte: #3d5661;
-  --verde-suave: #1f3d13;
-  --azul-suave: #10323f;
-  --rojo-suave: #3d1618;
+  --tinta: #EDEBE3;
+  --tinta-2: #9A9DB5;
+  --fondo: #12141F;
+  --fondo-2: #1B1E2C;
+  --papel: #1A1D2B;
+  --borde: #2C3043;
+  --borde-fuerte: #3B4058;
+
+  --azul: #96A3EC;
+  --azul-oscuro: #7E8DDE;
+  --azul-suave: #232842;
+  --dorado: #F0B754;
+  --verde: #7BC493;
+  --verde-oscuro: #63AC7B;
+  --verde-suave: #1B2E22;
+  --rojo: #F0A882;
+  --rojo-oscuro: #D88E68;
+  --rojo-suave: #2E1D14;
+  --morado: #B49BE8;
 }
 
 * { box-sizing: border-box; }
@@ -942,7 +973,7 @@ p { margin: 0 0 12px; }
   margin: 26px 0 12px;
   padding: 14px;
   border-radius: 16px;
-  background: var(--tarjeta);
+  background: var(--papel);
   border: 2px solid var(--c, var(--borde));
 }
 .nivel-cabecera.cerrado { opacity: .62; border-style: dashed; }
@@ -1123,3 +1154,204 @@ p { margin: 0 0 12px; }
   align-items: center;
   justify-content: center;
 }
+
+/* El pie cuando se pidió ver la respuesta. Ni verde ni rojo: no se acertó,
+   pero tampoco se falló — se reconoció no saberlo, que es lo que hay que
+   hacer. Pintarlo de rojo castigaría al único botón honesto de la pantalla. */
+.pie.neutro {
+  background: var(--fondo2);
+  border-top: 3px solid var(--azul, #1cb0f6);
+}
+.pie.neutro .pie-titulo span { color: var(--azul, #1cb0f6); }
+
+/* ==========================================================================
+   El cuaderno: índice del curso y registro de estudio
+   ========================================================================== */
+
+/* Tipografía con una escala de verdad. No hay fuente descargada —la aplicación
+   tiene que abrir sin internet— así que la diferencia la hacen el tamaño, el
+   peso, el interletrado y el color, no la familia. */
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -.022em;
+  line-height: 1.15;
+  margin: 4px 0 18px;
+}
+h2 { font-size: 1.12rem; font-weight: 700; letter-spacing: -.012em; }
+h3 { font-size: .98rem; font-weight: 700; letter-spacing: -.008em; }
+
+/* --- Barra de arriba --- */
+.barra.sobria { gap: 10px; }
+.barra-nivel {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.contador.paso {
+  font-size: .8rem;
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Navegación de abajo, sólo texto --- */
+.nav-caja button {
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  padding: 10px 4px;
+}
+.nav-caja button.activa { color: var(--azul); }
+
+/* --- "Por dónde ibas" --- */
+.seguir {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--azul);
+  border-radius: 0 var(--radio) var(--radio) 0;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+.seguir .titulo { font-size: 1.15rem; font-weight: 700; margin: 2px 0; }
+.seguir .btn { margin-top: 12px; }
+
+/* --- Índice: niveles --- */
+.nivel { margin-bottom: 30px; }
+.nivel-cab { padding-bottom: 12px; border-bottom: 1px solid var(--borde); margin-bottom: 4px; }
+.nivel-cab.cerrado { opacity: .55; }
+.nivel-cab h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.nivel-cab .sub { margin: 4px 0 0; font-size: .86rem; color: var(--tinta-2); }
+.nivel-cab p { margin: 6px 0 0; }
+.mcer {
+  font-size: .66rem; font-weight: 700; letter-spacing: .07em;
+  color: var(--tinta-2); text-transform: uppercase;
+}
+.sello {
+  font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--verde); border: 1px solid currentColor; border-radius: 4px; padding: 1px 5px;
+}
+.linea-prog {
+  height: 3px; background: var(--borde); border-radius: 2px; overflow: hidden; margin: 8px 0 0;
+}
+.linea-prog i { display: block; height: 100%; background: var(--azul); }
+
+/* --- Índice: unidades desplegables --- */
+.unidad { border-bottom: 1px solid var(--borde); }
+.unidad-cab {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: none; border: 0; padding: 13px 2px; cursor: pointer;
+  text-align: left; color: inherit; font: inherit;
+}
+.flecha {
+  flex: 0 0 auto; font-size: 20px; line-height: 1; color: var(--tinta-2);
+  transition: transform .15s ease; transform-origin: 50% 50%;
+}
+.flecha.abierta { transform: rotate(90deg); }
+.unidad-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.unidad-txt .titulo { font-weight: 650; }
+.cuenta {
+  flex: 0 0 auto; font-size: .78rem; color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+.cuenta.completa { color: var(--verde); font-weight: 700; }
+
+.lecciones { list-style: none; margin: 0 0 12px; padding: 0 0 0 32px; }
+.leccion-fila {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 0; padding: 9px 2px; cursor: pointer;
+  text-align: left; color: inherit; font: inherit; font-size: .94rem;
+}
+.leccion-fila .marca {
+  flex: 0 0 1.1em; color: var(--verde); font-weight: 700;
+}
+.leccion-fila .txt { flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.leccion-fila.hecha .txt { color: var(--tinta-2); }
+.etiqueta {
+  font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--tinta-2); background: var(--fondo-2); border-radius: 3px; padding: 1px 5px;
+}
+
+/* --- Examen, como una fila más del índice y no como un premio --- */
+.examen-fila {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 2px; margin-top: 2px;
+  border-top: 2px solid var(--borde);
+}
+.examen-fila .txt { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.examen-fila .titulo { font-weight: 650; }
+.examen-fila.aprobada .titulo { color: var(--verde); }
+
+/* --- Registro --- */
+.cifras {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--borde); border: 1px solid var(--borde);
+  border-radius: var(--radio); overflow: hidden; margin-bottom: 26px;
+}
+.cifra { background: var(--papel); padding: 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+.cifra .n { font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.cifra .et { font-size: .76rem; color: var(--tinta-2); }
+
+.bloque { margin-bottom: 28px; }
+.bloque h2 {
+  font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tinta-2); margin: 0 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--borde);
+}
+.bloque p { margin: 8px 0 0; }
+
+.fila-prog { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: .88rem; }
+.fila-prog .et { flex: 0 0 5.8em; }
+.fila-prog .linea-prog { flex: 1 1 auto; margin: 0; }
+.fila-prog .val { flex: 0 0 auto; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+
+.olvido {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--borde); font-size: .9rem;
+}
+.olvido .mini { margin-left: auto; white-space: nowrap; }
+
+/* Un enlace de texto, para lo secundario. Un botón más compite con el que sí
+   importa; un enlace se ofrece sin insistir. */
+.enlace {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--azul); font: inherit; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- La corrección, sin mascota --- */
+.pie-titulo .marca { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+.pie.bien .pie-titulo .marca { color: var(--verde); }
+.pie.mal .pie-titulo .marca { color: var(--rojo); }
+.pie.neutro .pie-titulo .marca { color: var(--azul); }
+
+/* El botón principal va en índigo, no en verde.
+   El verde de acción sobre fondo claro es media firma de Duolingo: con ese
+   botón, cualquier pantalla se le parece aunque el resto no tenga nada que
+   ver. Acá el verde queda reservado para una sola cosa —"correcto"— y así
+   además significa algo: cuando ves verde, acertaste. */
+.btn {
+  background: var(--azul);
+  box-shadow: none;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: .02em;
+  text-transform: none;
+  min-height: 48px;
+}
+.btn:active:not(:disabled) { transform: none; background: var(--azul-oscuro); }
+.btn.azul { background: var(--azul); }
+.btn.rojo { background: var(--rojo); }
+.btn.hueco {
+  background: transparent;
+  color: var(--azul);
+  border: 1px solid var(--borde-fuerte);
+}
+.btn.chico { min-height: 38px; padding: 9px 16px; width: auto; font-size: .86rem; }
+
+/* La segunda tarjeta de la portada no compite con la primera: ofrecer dos
+   cosas igual de fuerte es no ofrecer ninguna. */
+.seguir + .seguir { border-left-color: var(--borde-fuerte); }
+.seguir + .seguir .btn { background: transparent; color: var(--azul); border: 1px solid var(--borde-fuerte); }

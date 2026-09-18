@@ -15,11 +15,10 @@ const RAIZ = path.join(__dirname, "..", "web");
 const ARCHIVOS = [
   "js/dom.js", "js/almacen.js", "js/datos.js",
   "js/datos-verbos.js", "js/datos-sonidos.js", "js/datos-gramatica.js", "js/curriculo.js",
-  "js/srs.js", "js/audio.js", "js/texto.js", "js/motor.js", "js/logros.js",
+  "js/srs.js", "js/audio.js", "js/texto.js", "js/motor.js",
   "js/verbos.js", "js/pronunciacion.js", "js/gramatica.js",
   "js/datos-reglas.js", "js/reglas.js", "js/datos-lectura.js", "js/examen.js",
   "js/datos-palabras.js", "js/diccionario.js",
-  "js/desafio.js", "js/mascota.js",
 ];
 
 // localStorage de mentira: un objeto en memoria. Alcanza porque el almacén sólo
@@ -507,6 +506,7 @@ function estadoDePrueba(cambios) {
     guardadoEn: 1000,
     xp: 0,
     xpPorDia: {},
+    minutosPorDia: {},
     metaDiaria: 30,
     racha: { dias: 0, ultimoDia: null, mejor: 0, escudos: 2 },
     vidas: { n: 5, desde: null },
@@ -646,74 +646,6 @@ prueba("restaurar un respaldo viejo no borra lo practicado después", function (
   APP.almacen.importar(respaldoViejo);
   igual(APP.almacen.estado().xp, 900, "el XP de después del respaldo sigue ahí;");
   igual(APP.almacen.leccion("u1l1").coronas, 2);
-});
-
-/* ---------------- El desafío del día ---------------- */
-
-prueba("el desafío del día no cambia dentro del mismo día", function () {
-  const uno = APP.desafio.deHoy();
-  const dos = APP.desafio.deHoy();
-  igual(uno.id, dos.id);
-  cierto(uno.meta > 0);
-  cierto(!!uno.texto);
-});
-
-prueba("sólo cuenta lo que el desafío de hoy pide", function () {
-  APP.almacen.borrarTodo();
-  const d = APP.desafio.deHoy();
-  if (d.tipo === "xp") return; // ése se mide del XP del día, no se anota
-  igual(APP.desafio.progreso(), 0);
-  APP.desafio.anotar("un-tipo-que-no-existe", 5);
-  igual(APP.desafio.progreso(), 0, "algo que no pide no debería avanzarlo;");
-  APP.desafio.anotar(d.tipo, 1);
-  igual(APP.desafio.progreso(), 1);
-});
-
-prueba("el desafío se cumple y el premio se cobra una sola vez", function () {
-  APP.almacen.borrarTodo();
-  const d = APP.desafio.deHoy();
-  if (d.tipo === "xp") {
-    APP.almacen.sumarXp(d.meta);
-  } else {
-    APP.desafio.anotar(d.tipo, d.meta);
-  }
-  cierto(APP.desafio.cumplido());
-  cierto(APP.desafio.pendienteDeCobro());
-
-  const xpAntes = APP.almacen.estado().xp;
-  const premio = APP.desafio.cobrar();
-  cierto(!!premio, "debería entregar el premio");
-  igual(APP.almacen.estado().xp, xpAntes + APP.desafio.PREMIO_XP);
-  igual(APP.desafio.cobrar(), null, "y no se puede cobrar dos veces;");
-});
-
-prueba("el progreso del desafío no pasa de la meta", function () {
-  APP.almacen.borrarTodo();
-  const d = APP.desafio.deHoy();
-  if (d.tipo === "xp") return;
-  APP.desafio.anotar(d.tipo, d.meta + 50);
-  APP.desafio.anotar(d.tipo, 10);
-  igual(APP.desafio.progreso(), d.meta + 50, "lo que ya se hizo se guarda tal cual;");
-  cierto(APP.desafio.cumplido());
-});
-
-prueba("al juntar dos aparatos se conserva el desafío del día más nuevo", function () {
-  const ayer = { fecha: "2026-08-25", progreso: 9, cobrado: true };
-  const hoy = { fecha: "2026-08-26", progreso: 2, cobrado: false };
-  const a = { guardadoEn: 1, xpPorDia: {}, contadores: {}, records: {}, logros: {}, lecciones: {},
-    srs: {}, errores: [], canciones: [], ajustes: {}, racha: { dias: 0, mejor: 0, escudos: 2 },
-    vidas: {}, desafio: ayer };
-  const b = Object.assign({}, a, { guardadoEn: 2, desafio: hoy });
-  igual(APP.almacen.fusionarProgreso(a, b).desafio, hoy);
-});
-
-prueba("el mismo día en dos aparatos se queda con el mejor avance", function () {
-  const base = { guardadoEn: 1, xpPorDia: {}, contadores: {}, records: {}, logros: {}, lecciones: {},
-    srs: {}, errores: [], canciones: [], ajustes: {}, racha: { dias: 0, mejor: 0, escudos: 2 }, vidas: {} };
-  const a = Object.assign({}, base, { desafio: { fecha: "2026-08-26", progreso: 5, cobrado: false } });
-  const b = Object.assign({}, base, { guardadoEn: 2, desafio: { fecha: "2026-08-26", progreso: 2, cobrado: true } });
-  const j = APP.almacen.fusionarProgreso(a, b);
-  igual(j.desafio, { fecha: "2026-08-26", progreso: 5, cobrado: true });
 });
 
 /* ---------------- Récords ---------------- */
@@ -1045,44 +977,6 @@ prueba("los ejercicios de gramática traen una sola respuesta correcta", functio
   igual(malos.slice(0, 5), []);
 });
 
-/* ---------------- Pelusa ---------------- */
-
-prueba("todas las expresiones dibujan un SVG cerrado", function () {
-  Object.keys(APP.mascota.CARAS).forEach(function (cara) {
-    const svg = APP.mascota.svg(cara, 80);
-    cierto(svg.indexOf("<svg") === 0, cara + ": no empieza con <svg");
-    cierto(/<\/svg>$/.test(svg), cara + ": no cierra el <svg>");
-    // Sin etiquetas a medio cerrar: un SVG roto no da error, sólo desaparece.
-    const abre = (svg.match(/<(?!\/)[a-z]+/g) || []).length;
-    const cierra = (svg.match(/<\/[a-z]+>/g) || []).length + (svg.match(/\/>/g) || []).length;
-    igual(abre, cierra, cara + ": etiquetas descuadradas;");
-  });
-});
-
-prueba("una expresión que no existe no rompe nada", function () {
-  const svg = APP.mascota.svg("carnaval", 40);
-  cierto(svg.indexOf("<svg") === 0, "debería caer en la cara normal");
-});
-
-prueba("Pelusa siempre tiene algo que decir y una cara que existe", function () {
-  APP.almacen.borrarTodo();
-  const casos = [
-    function () {},
-    function () { APP.almacen.sumarXp(500); },
-    function () {
-      const e = APP.almacen.estado();
-      e.racha = { dias: 9, ultimoDia: APP.almacen.hoy(), mejor: 9, escudos: 2 };
-      APP.almacen.guardar();
-    },
-  ];
-  casos.forEach(function (preparar, i) {
-    preparar();
-    const s = APP.mascota.saludo();
-    cierto(!!APP.mascota.CARAS[s.cara], "caso " + i + ": cara desconocida “" + s.cara + "”");
-    cierto(s.texto && s.texto.length > 5, "caso " + i + ": sin texto");
-  });
-});
-
 /* ---------------- Exámenes y nivelación ---------------- */
 
 prueba("el examen de cada nivel mide las cuatro destrezas", function () {
@@ -1317,6 +1211,79 @@ prueba("sólo el inglés se hace tocable, no las preguntas en español", functio
     });
   });
   igual(malas, []);
+});
+
+/* ---------------- El registro de estudio ---------------- */
+
+prueba("los minutos se anotan por día y se suman", function () {
+  APP.almacen.borrarTodo();
+  igual(APP.almacen.minutosTotales(), 0);
+  igual(APP.almacen.diasEstudiados(), 0);
+
+  APP.almacen.sumarMinutos(7);
+  APP.almacen.sumarMinutos(3);
+  igual(APP.almacen.minutosDelDia(), 10);
+  igual(APP.almacen.minutosTotales(), 10);
+  igual(APP.almacen.diasEstudiados(), 1);
+
+  // Un valor absurdo no ensucia el registro.
+  APP.almacen.sumarMinutos(0);
+  APP.almacen.sumarMinutos(-5);
+  igual(APP.almacen.minutosTotales(), 10);
+});
+
+prueba("los minutos de dos aparatos se suman, no se pisan", function () {
+  /* El mismo problema que tuvo el XP en su día: estudiar veinte minutos en el
+   * teléfono y diez en el computador el mismo día tiene que dar treinta. */
+  const hoy = APP.almacen.hoy();
+  // Cada copia lleva el contador de SU aparato: por eso se pueden sumar sin
+  // contar dos veces. Con el mismo identificador no habría forma de saber si
+  // son treinta minutos o los mismos veinte vistos dos veces, y ahí manda el
+  // mayor, que es lo correcto.
+  const telefono = estadoDePrueba({ minutosPorDia: {} });
+  telefono.minutosPorDia[hoy] = { "movil-abc": 20 };
+  const computador = estadoDePrueba({ minutosPorDia: {} });
+  computador.minutosPorDia[hoy] = { "compu-def": 10 };
+
+  const juntos = APP.almacen.fusionarProgreso(telefono, computador);
+  let total = 0;
+  const reparto = juntos.minutosPorDia[hoy];
+  Object.keys(reparto).forEach(function (k) { total += reparto[k]; });
+  igual(total, 30);
+
+  // Y el mismo aparato dos veces no se duplica.
+  const mismo = estadoDePrueba({ minutosPorDia: {} });
+  mismo.minutosPorDia[hoy] = { "movil-abc": 20 };
+  const otra = APP.almacen.fusionarProgreso(telefono, mismo);
+  igual(otra.minutosPorDia[hoy]["movil-abc"], 20);
+});
+
+prueba("una lección anota el tiempo y no puntos", function () {
+  /* Los puntos se pueden inflar contestando rápido lo que ya sabías. El
+   * tiempo no. Por eso el registro mide tiempo. */
+  APP.almacen.borrarTodo();
+  const antes = APP.almacen.minutosTotales();
+  APP.almacen.sumarMinutos(1);
+  cierto(APP.almacen.minutosTotales() > antes);
+});
+
+prueba("la semana trae los siete días con sus minutos", function () {
+  APP.almacen.borrarTodo();
+  APP.almacen.sumarMinutos(15);
+  const sem = APP.almacen.semana();
+  igual(sem.length, 7);
+  igual(sem[6].minutos, 15);   // el último es hoy
+  igual(sem[0].minutos, 0);
+});
+
+prueba("no queda rastro de la capa de juego en las pantallas", function () {
+  /* Se quitó entera —vidas, puntos, racha de fuego, mascota, confeti— y lo que
+   * hay que vigilar es que no vuelva a colarse por una llamada suelta: un
+   * APP.fiesta.confeti olvidado revienta la pantalla, porque el archivo ya no
+   * existe. */
+  const idos = ["fiesta", "mascota", "logros", "desafio"];
+  const vivos = idos.filter(function (m) { return !!APP[m]; });
+  igual(vivos, []);
 });
 
 /* ---------------- Resultado ---------------- */

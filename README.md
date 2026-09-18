@@ -25,7 +25,14 @@ teléfono como cualquier otra app, y sigue funcionando en el metro sin señal.
   explica por qué. Es lo único que necesita internet y lo único que cuesta
   dinero: es opcional y se configura aparte (ver más abajo).
 - **Gramática de consulta**: 19 temas con la trampa típica de cada uno.
-- **Pelusa**, una chinchilla que comenta cómo te va.
+- **Registro de estudio**: minutos, días, reglas dominadas y las palabras que
+  se te siguen olvidando.
+
+No tiene vidas, ni puntos, ni rachas de fuego, ni logros. Se quitaron a
+propósito: medían cuánto habías tocado la pantalla, no cuánto sabías, y se
+puede juntar mucho XP contestando rápido lo que ya sabías. Equivocarse no
+cuesta nada — el error queda anotado y vuelve en el repaso, que es para lo que
+sirve.
 
 La cuenta es opcional. Sin cuenta, todo el avance se guarda en el aparato y la
 aplicación funciona entera. Con cuenta, el avance del teléfono y el del
@@ -140,8 +147,8 @@ ninguna para probar.
 ### Las pruebas
 
 ```bash
-node pruebas/pruebas.js         # la lógica de la aplicación (106)
-python3 -m pytest pruebas/ -q   # el servidor (43)
+node pruebas/pruebas.js         # la lógica de la aplicación (102)
+python3 -m pytest pruebas/ -q   # el servidor (46)
 ```
 
 Las de `node` no necesitan navegador: cargan los mismos archivos que usa la
@@ -170,6 +177,24 @@ internet y se rompe sin él, que es la peor forma de romperse.
 `web/sw.js`.** Si no, los teléfonos que ya la tienen instalada siguen con la
 versión vieja para siempre. No da ningún error: simplemente los cambios no
 aparecen, y es lo más difícil de diagnosticar de todo el proyecto.
+
+Que eso funcione depende de tres piezas que van juntas, y las tres costaron un
+despliegue que parecía correcto y no cambiaba nada:
+
+1. `sw.js` pide el casco con `cache: "reload"`, para saltarse la caché del
+   navegador. Sin eso, el service worker nuevo guarda en su caché nueva el
+   mismo código viejo que el navegador tenía guardado.
+2. El servidor manda los `.js` y el `.css` con `no-cache`. Llevan siempre el
+   mismo nombre, así que dejarlos guardados un día significa servir código
+   viejo durante un día.
+3. `app.js` escucha `controllerchange` y recarga sola. Aunque el service worker
+   nuevo tome el control, la página ya abierta sigue ejecutando el JavaScript
+   que cargó al principio; hacía falta recargar dos veces, y nadie recarga dos
+   veces.
+
+Hay pruebas para la 2 (`pruebas/test_sitio.py`). Las otras dos se comprueban
+publicando una versión, cambiando algo y viendo si aparece con una sola
+recarga.
 
 **La fusión de avances vive en `web/js/almacen.js`, no en el servidor.** El
 servidor guarda un texto y lo devuelve igual, sin entenderlo. Está hecho así a

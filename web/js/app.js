@@ -40,9 +40,40 @@
     // instalar) no tiene sw.js: sin esta marca intentaría registrarlo y dejaría
     // un error en la consola cada vez que abre.
     if (!document.querySelector('meta[name="modo-sin-conexion"]')) return;
+
+    /* Recargar sola cuando llega una versión nueva.
+     *
+     * Sin esto, publicar una versión nueva no se ve aunque todo esté bien
+     * hecho. El service worker nuevo se instala y toma el control —hace
+     * skipWaiting y claim— pero la página que ya está abierta se quedó con el
+     * JavaScript que cargó al principio, que es el viejo. Hacía falta una
+     * segunda recarga a mano, y nadie recarga dos veces: se concluye que la
+     * actualización no llegó.
+     *
+     * 'teniaControlador' distingue el caso que sí importa. La primera vez que
+     * alguien abre la aplicación no hay controlador y el evento igual salta:
+     * recargar ahí sería un parpadeo gratis en la primera visita, justo la
+     * peor para dar una impresión rara.
+     */
+    const teniaControlador = !!navigator.serviceWorker.controller;
+    let recargando = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (!teniaControlador || recargando) return;
+      recargando = true;
+      window.location.reload();
+    });
+
     // La ruta es relativa a propósito: la aplicación tiene que funcionar igual
     // servida desde la raíz del dominio o desde una subcarpeta.
-    navigator.serviceWorker.register("sw.js").catch(function () {
+    navigator.serviceWorker.register("sw.js").then(function (reg) {
+      /* Y se vuelve a preguntar al volver a la aplicación. Una aplicación
+       * instalada puede pasarse semanas sin recargarse —se deja en segundo
+       * plano y se vuelve a ella— y entonces nunca se enteraría de que hay
+       * algo nuevo. */
+      document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) reg.update().catch(function () {});
+      });
+    }).catch(function () {
       /* sin service worker sigue funcionando, sólo que no offline */
     });
   }

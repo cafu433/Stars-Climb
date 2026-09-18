@@ -55,6 +55,19 @@ def create_app(nombre_config=None):
     return app
 
 
+def _parece_archivo(ruta):
+    """Si esa dirección pedía un archivo concreto y no una pantalla.
+
+    Se mira por carpeta y por extensión. Las dos cosas: /js/loquesea sin punto
+    también es un archivo que falta, y /manifest.webmanifest no está en
+    ninguna carpeta pero sí lleva extensión.
+    """
+    if ruta.startswith(("js/", "css/", "icons/")):
+        return True
+    ultimo = ruta.rsplit("/", 1)[-1]
+    return "." in ultimo
+
+
 def _registrar_estaticos(app):
     """Sirve la aplicación desde web/."""
 
@@ -69,8 +82,24 @@ def _registrar_estaticos(app):
 
         if archivo in SIN_CACHE:
             respuesta.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif archivo.startswith("icons/"):
+            # Los iconos sí pueden durar: si cambian, cambia su nombre.
+            respuesta.headers["Cache-Control"] = "public, max-age=604800"
         else:
-            respuesta.headers["Cache-Control"] = "public, max-age=86400"
+            # Los .js y el .css llevan siempre el mismo nombre, así que
+            # dejarlos guardados un día era un error caro: el navegador se
+            # quedaba con el código viejo hasta 24 horas, y encima se lo
+            # servía al service worker cuando éste iba a buscar la versión
+            # nueva. Cualquier actualización parecía no funcionar, sin dar
+            # ningún error.
+            #
+            # "no-cache" no significa "no guardar": significa "pregunta antes
+            # de usar lo guardado". El navegador manda una petición
+            # condicional y casi siempre recibe un 304 vacío, que cuesta
+            # nada. Y de todas formas, una vez instalada, quien responde es
+            # el service worker desde su propia caché: esto sólo decide qué
+            # se ve la primera vez y al actualizar.
+            respuesta.headers["Cache-Control"] = "no-cache, must-revalidate"
 
         # Sin esta cabecera el service worker no puede hacerse cargo de toda la
         # aplicación, y entonces no funciona sin internet.
@@ -102,8 +131,22 @@ def _registrar_estaticos(app):
         respuesta = entregar(archivo)
         if respuesta is not None:
             return respuesta
-        # Cualquier otra dirección devuelve la aplicación: así, abrir un enlace
-        # guardado a una ruta interna no muestra un 404.
+
+        # Un archivo que falta tiene que dar 404, no la portada.
+        #
+        # Devolver index.html para todo está bien para una dirección como
+        # /practica —abrir un enlace guardado no debe dar un 404— pero es
+        # pésimo para un .js: el navegador pide JavaScript, recibe HTML, y
+        # falla con un error de sintaxis que no dice nada. La aplicación
+        # arranca a medias y no hay forma de saber que lo que pasa es que un
+        # archivo no se subió.
+        #
+        # Costó una tarde entera de suponer que era la caché del navegador
+        # cuando en realidad faltaban archivos en el servidor.
+        if _parece_archivo(archivo):
+            return jsonify({"error": "No encontrado: " + archivo}), 404
+
+        # Una ruta interna sí devuelve la aplicación.
         return entregar("index.html") or (jsonify({"error": "No encontrado"}), 404)
 
 

@@ -3,7 +3,7 @@
  * Camino → qué toca aprender hoy.
  * Práctica → repasar, corregir errores, frases y canciones.
  * Progreso → cuánto llevas de verdad, no cuántos días seguidos abriste la app.
- * Ajustes → voz, teclado, vidas y respaldo.
+ * Ajustes → voz, teclado y respaldo.
  *
  * Se redibuja la pantalla completa en cada cambio. Es más simple que llevar la
  * cuenta de qué nodo cambió, y a esta escala no se nota.
@@ -17,6 +17,9 @@
   // Una "vista" es una pantalla que se abre por encima de la pestaña y se
   // cierra volviendo: Reglas, por ahora.
   let vista = null;
+  // Qué unidades están desplegadas en el índice. En memoria y no guardado: es
+  // cómo estás mirando la pantalla ahora, no parte de tu avance.
+  const desplegadas = {};
   let raiz = null;
 
   function pintar() {
@@ -32,36 +35,51 @@
 
   /* ---------------- Barra superior ---------------- */
 
+  /* La barra dice en qué nivel del curso vas y cuánto llevas hoy, en minutos.
+   *
+   * Antes llevaba una racha de fuego, una barra de puntos y unos corazones.
+   * Las tres medían lo mismo —cuánto has tocado la pantalla— y ninguna medía
+   * inglés. Los minutos tampoco lo miden, pero al menos no se pueden inflar
+   * contestando rápido cosas que ya sabías.
+   */
   function barraSuperior() {
-    const e = A().estado();
-    const racha = A().rachaViva();
-    const xpHoy = A().xpDeHoy();
-    const meta = e.metaDiaria;
-    const vidas = A().vidas();
-    const pct = Math.min(100, Math.round((xpHoy / meta) * 100));
+    const minutos = A().minutosDelDia();
+    const nivel = nivelActual();
+    const ls = nivel ? APP.curriculo.leccionesDelNivel(nivel.id) : [];
+    const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+    const pct = ls.length ? Math.round((hechas / ls.length) * 100) : 0;
+
     return (
-      '<div class="barra">' +
-      '<span class="contador racha' + (racha ? "" : " apagada") + '">🔥 <span class="n">' + racha + "</span></span>" +
+      '<div class="barra sobria">' +
+      '<span class="barra-nivel">' + (nivel ? d.esc(nivel.titulo) : "") + "</span>" +
       '<div class="crece" style="display:flex;align-items:center;gap:8px;flex:1">' +
-      '<div class="barra-prog fina"><i style="width:' + pct + '%;background:' +
-      (pct >= 100 ? "var(--dorado)" : "var(--verde)") + '"></i></div>' +
-      '<span class="mini fuerte apagado" style="white-space:nowrap">' + xpHoy + "/" + meta + "</span>" +
+      '<div class="barra-prog fina"><i style="width:' + pct + '%"></i></div>' +
+      '<span class="mini apagado" style="white-space:nowrap">' + hechas + "/" + ls.length + "</span>" +
       "</div>" +
-      (e.ajustes.corazones === false
-        ? ""
-        : '<span class="contador vidas' + (vidas ? "" : " apagada") + '" data-accion="ver-vidas">❤️ <span class="n">' +
-          vidas + "</span></span>") +
+      '<span class="mini apagado" style="white-space:nowrap">' +
+      (minutos ? minutos + " min hoy" : "") + "</span>" +
       "</div>"
     );
   }
 
+  // El primer nivel abierto que todavía no está aprobado: es donde se está.
+  function nivelActual() {
+    const ns = APP.curriculo.NIVELES;
+    for (let i = 0; i < ns.length; i++) {
+      if (APP.examen.abierto(ns[i].id) && !A().nivelCurso(ns[i].id).aprobado) return ns[i];
+    }
+    return ns[ns.length - 1];
+  }
+
   /* ---------------- Navegación ---------------- */
 
+  /* Sin emoji. Un icono de dibujo animado por pestaña es de lo primero que
+   * hace que algo parezca un juego, y esto es un cuaderno de estudio. */
   const TABS = [
-    { id: "camino", emo: "🛤️", nombre: "Camino" },
-    { id: "practica", emo: "🎧", nombre: "Práctica" },
-    { id: "progreso", emo: "📊", nombre: "Progreso" },
-    { id: "ajustes", emo: "⚙️", nombre: "Ajustes" },
+    { id: "camino", nombre: "Curso" },
+    { id: "practica", nombre: "Practicar" },
+    { id: "progreso", nombre: "Registro" },
+    { id: "ajustes", nombre: "Ajustes" },
   ];
 
   function navegacion() {
@@ -70,7 +88,7 @@
       TABS.map(function (t) {
         return (
           '<button class="' + (tab === t.id ? "activa" : "") + '" data-accion="tab" data-tab="' + t.id + '">' +
-          '<span class="emo">' + t.emo + "</span>" + t.nombre + "</button>"
+          t.nombre + "</button>"
         );
       }).join("") +
       "</div></nav>"
@@ -88,177 +106,147 @@
 
   /* ---------------- Camino ---------------- */
 
+  /* El índice del curso.
+   *
+   * Antes esto era un camino de burbujas que se recorría hacia abajo: bonito,
+   * pero sólo dejaba ver tres lecciones a la vez y no decía nada de lo que
+   * viene. Un índice —el de un libro— muestra el curso entero de un vistazo,
+   * deja entrar donde quieras, y no insinúa que haya un único camino correcto.
+   *
+   * Las unidades se despliegan. Cerradas ocupan una línea; abiertas muestran
+   * sus lecciones. Así se puede ver el temario completo sin perderse.
+   */
   function camino() {
-    const siguiente = A().siguienteLeccion();
-    const saludo = APP.mascota.saludo();
-    let out = APP.mascota.burbuja(saludo.cara, saludo.texto) + tarjetaDesafio() + tarjetaNivelacion();
+    let out = tarjetaNivelacion() + siguienteSugerida();
 
-    /* El camino va agrupado por nivel, y cada nivel cierra con su examen. Ver
-     * "Básico A1-A2" y qué se podrá hacer al terminarlo da una meta con
-     * sentido fuera de la aplicación; "unidad 7 de 21" no dice nada. */
     APP.curriculo.NIVELES.forEach(function (n) {
-      out += cabeceraNivel(n);
-      if (!APP.examen.abierto(n.id)) return;
-      APP.curriculo.delNivel(n.id).forEach(function (u) { out += unidadEnCamino(u, siguiente); });
-      out += tarjetaExamen(n);
+      const abierto = APP.examen.abierto(n.id);
+      const est = A().nivelCurso(n.id);
+      const ls = APP.curriculo.leccionesDelNivel(n.id);
+      const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+
+      out +=
+        '<section class="nivel">' +
+        '<header class="nivel-cab' + (abierto ? "" : " cerrado") + '">' +
+        "<h2>" + d.esc(n.titulo) +
+        '<span class="mcer">' + d.esc(n.mcer) + "</span>" +
+        (est.aprobado ? '<span class="sello">aprobado</span>' : "") +
+        "</h2>" +
+        '<p class="sub">' + d.esc(n.resumen) + "</p>" +
+        (abierto
+          ? '<div class="linea-prog"><i style="width:' +
+            Math.round((hechas / ls.length) * 100) + '%"></i></div>' +
+            '<p class="mini apagado">' + hechas + " de " + ls.length + " lecciones · " +
+            '<button class="enlace" data-accion="ver-nivel" data-id="' + n.id + '">qué aprenderás</button></p>'
+          : '<p class="mini apagado">Se abre al aprobar el nivel anterior, o con la prueba de nivel.</p>') +
+        "</header>";
+
+      if (abierto) {
+        APP.curriculo.delNivel(n.id).forEach(function (u) { out += unidadEnIndice(u); });
+        out += filaExamen(n);
+      }
+      out += "</section>";
     });
     return out;
   }
 
-  function cabeceraNivel(n) {
-    const abierto = APP.examen.abierto(n.id);
-    const est = A().nivelCurso(n.id);
-    const ls = APP.curriculo.leccionesDelNivel(n.id);
-    const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+  function unidadEnIndice(u) {
+    const hechas = u.lecciones.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+    const abierta = desplegadas[u.id];
 
-    return (
-      '<div class="nivel-cabecera' + (abierto ? "" : " cerrado") + '" style="--c:' + n.color + '">' +
-      '<div class="nivel-emo">' + (abierto ? n.emo : "🔒") + "</div>" +
-      '<div class="nivel-txt">' +
-      "<h2>" + d.esc(n.titulo) + ' <span class="mcer">' + d.esc(n.mcer) + "</span>" +
-      (est.aprobado ? ' <span class="pastilla verde">aprobado</span>' : "") + "</h2>" +
-      '<div class="sub">' + d.esc(n.resumen) + "</div>" +
-      (abierto
-        ? '<div class="barra-prog fina" style="margin-top:8px"><i style="width:' +
-          Math.round((hechas / ls.length) * 100) + '%;background:' + n.color + '"></i></div>' +
-          '<div class="mini apagado">' + hechas + " de " + ls.length + " lecciones</div>"
-        : '<div class="mini apagado">Se abre al aprobar el nivel anterior' +
-          ', o con la prueba de nivel.</div>') +
-      "</div>" +
-      '<button class="btn hueco chico" data-accion="ver-nivel" data-id="' + n.id + '">Qué aprenderás</button>' +
-      "</div>"
-    );
+    let out =
+      '<div class="unidad">' +
+      '<button class="unidad-cab" data-accion="desplegar" data-id="' + u.id + '">' +
+      '<span class="flecha' + (abierta ? " abierta" : "") + '">›</span>' +
+      '<span class="unidad-txt"><span class="titulo">' + d.esc(u.titulo) + "</span>" +
+      '<span class="mini apagado">' + d.esc(u.resumen) + "</span></span>" +
+      '<span class="cuenta' + (hechas === u.lecciones.length ? " completa" : "") + '">' +
+      hechas + "/" + u.lecciones.length + "</span>" +
+      "</button>";
+
+    if (abierta) {
+      out += '<ol class="lecciones">';
+      u.lecciones.forEach(function (l) {
+        const est = A().leccion(l.id);
+        const hecha = est.coronas > 0;
+        out +=
+          '<li><button class="leccion-fila' + (hecha ? " hecha" : "") + '" ' +
+          'data-accion="leccion" data-id="' + l.id + '">' +
+          '<span class="marca">' + (hecha ? "✓" : "") + "</span>" +
+          '<span class="txt">' + d.esc(l.titulo) +
+          (l.clase || (l.reglas && l.reglas.length)
+            ? '<span class="etiqueta">regla</span>'
+            : l.texto ? '<span class="etiqueta">lectura</span>' : "") +
+          "</span>" +
+          (est.veces ? '<span class="mini apagado">' + est.veces + "×</span>" : "") +
+          "</button></li>";
+      });
+      out += "</ol>";
+    }
+    return out + "</div>";
   }
 
-  function tarjetaExamen(n) {
+  function filaExamen(n) {
     const est = A().nivelCurso(n.id);
     const ls = APP.curriculo.leccionesDelNivel(n.id);
     const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
     /* No hace falta terminar el nivel entero para examinarse: con dos tercios
-     * ya se puede intentar. Obligar al 100% castiga a quien sabe y sólo quiere
-     * comprobarlo, que es justo a quien la prueba le ahorra más tiempo. */
+     * ya se puede. Obligar al 100% castiga a quien sabe y sólo quiere
+     * comprobarlo, que es a quien la prueba más tiempo le ahorra. */
     const listo = hechas >= Math.ceil(ls.length * 0.66);
 
     return (
-      '<div class="tarjeta examen-tarjeta' + (est.aprobado ? " aprobada" : "") + '">' +
-      '<div class="examen-emo">' + (est.aprobado ? "🎓" : "📝") + "</div>" +
-      "<h3>Examen de " + d.esc(n.titulo) + "</h3>" +
-      '<p class="chico apagado">Las cuatro destrezas: alternativas, escribir, escuchar y hablar. ' +
-      "Sin vidas y sin corregir sobre la marcha. Se aprueba con " + APP.examen.PARA_APROBAR + "%.</p>" +
-      (est.veces
-        ? '<div class="mini">Mejor nota: <b>' + est.mejor + "%</b> en " + est.veces +
-          (est.veces === 1 ? " intento" : " intentos") + "</div>"
-        : "") +
+      '<div class="examen-fila' + (est.aprobado ? " aprobada" : "") + '">' +
+      '<div class="txt"><span class="titulo">Examen de ' + d.esc(n.titulo) + "</span>" +
+      '<span class="mini apagado">Las cuatro destrezas. Se aprueba con ' +
+      APP.examen.PARA_APROBAR + "%." +
+      (est.veces ? " Mejor nota: " + est.mejor + "%." : "") + "</span></div>" +
       (listo
-        ? '<button class="btn" style="margin-top:10px" data-accion="examen" data-id="' + n.id + '">' +
-          (est.aprobado ? "Volver a rendirlo" : "Rendir el examen") + "</button>"
-        : '<div class="mini apagado" style="margin-top:10px">Te faltan ' +
-          (Math.ceil(ls.length * 0.66) - hechas) + " lecciones para poder rendirlo.</div>") +
+        ? '<button class="btn chico" data-accion="examen" data-id="' + n.id + '">' +
+          (est.aprobado ? "Repetir" : "Rendir") + "</button>"
+        : '<span class="mini apagado">faltan ' + (Math.ceil(ls.length * 0.66) - hechas) + "</span>") +
+      "</div>"
+    );
+  }
+
+  /* Por dónde seguir. Va arriba porque es la pregunta que se hace cualquiera al
+   * abrir la aplicación, y responderla con un índice entero es hacérsela
+   * responder a ella. */
+  function siguienteSugerida() {
+    const l = A().siguienteLeccion();
+    if (!l) return "";
+    const u = APP.curriculo.unidad(l.unidad);
+    return (
+      '<div class="seguir">' +
+      '<div class="mini apagado">Por dónde ibas</div>' +
+      '<div class="titulo">' + d.esc(l.titulo) + "</div>" +
+      '<div class="mini apagado">' + d.esc(u ? u.titulo : "") + "</div>" +
+      '<button class="btn" data-accion="leccion" data-id="' + l.id + '">' +
+      (A().leccion(l.id).veces ? "Seguir" : "Empezar") + "</button>" +
       "</div>"
     );
   }
 
   function tarjetaNivelacion() {
-    // Sólo se ofrece mientras no haya avance: después estorba, porque ya se
-    // sabe dónde está.
     const e = A().estado();
-    if (A().totalXp() > 200 || e.ajustes.nivelacionHecha) return "";
+    if (A().minutosTotales() > 20 || e.ajustes.nivelacionHecha) return "";
     return (
-      '<div class="tarjeta destacada">' +
-      "<h3>¿Ya sabes algo de inglés?</h3>" +
-      '<p class="chico apagado">Quince preguntas y te dejo donde te corresponde, ' +
+      '<div class="seguir">' +
+      '<div class="titulo">¿Ya sabes algo de inglés?</div>' +
+      '<p class="mini apagado">Quince preguntas y te dejo donde te corresponde, ' +
       "en vez de hacerte empezar en “Hola”.</p>" +
       '<button class="btn" data-accion="nivelacion">Hacer la prueba de nivel</button> ' +
-      '<button class="btn hueco chico" data-accion="saltar-nivelacion">Empezar desde cero</button>' +
+      '<button class="enlace" data-accion="saltar-nivelacion">empezar desde cero</button>' +
       "</div>"
     );
   }
-
-  function unidadEnCamino(u, siguiente) {
-    const hechas = u.lecciones.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
-    let out = "";
-      out +=
-        '<div class="unidad-cabecera" style="background:' + u.color + '">' +
-        '<span class="emo">' + u.icon + "</span>" +
-        '<div class="txt"><h2>' + d.esc(u.titulo) + "</h2>" +
-        '<div class="sub">' + d.esc(u.resumen) + "</div></div>" +
-        '<span class="pastilla" style="background:rgba(255,255,255,.25);color:#fff">' +
-        hechas + "/" + u.lecciones.length + "</span></div>" +
-        '<div class="camino">';
-
-      u.lecciones.forEach(function (l, i) {
-        const est = A().leccion(l.id);
-        const abierta = A().leccionAbierta(l.id);
-        const esSiguiente = siguiente && siguiente.id === l.id;
-        const clase = !abierta ? "cerrado" : est.coronas >= 5 ? "terminado" : "";
-        out +=
-          '<div class="nodo-fila" data-desvio="' + (i % 8) + '">' +
-          '<div class="nodo-caja">' +
-          (esSiguiente && abierta ? '<div class="burbuja">' + (est.veces ? "SEGUIR" : "EMPEZAR") + "</div>" : "") +
-          '<button class="nodo ' + clase + '" style="' +
-          (abierta && !clase ? "background:" + u.color + ";box-shadow:0 7px 0 " + oscurecer(u.color) : "") +
-          '" data-accion="leccion" data-id="' + l.id + '"' + (abierta ? "" : " disabled") + ">" +
-          (abierta ? (est.coronas >= 5 ? "👑" : u.icon) : "🔒") +
-          (est.coronas ? '<span class="coronas">👑 ' + est.coronas + "</span>" : "") +
-          "</button>" +
-          '<div class="nodo-etiqueta">' + d.esc(l.titulo) + "</div>" +
-          "</div></div>";
-      });
-      out += "</div>";
-    return out;
-  }
-
-  function tarjetaDesafio() {
-    /* Va arriba del camino porque es lo primero que se mira al abrir, y porque
-     * su gracia es cambiar la rutina: si estuviera escondido en otra pestaña
-     * sería una función que nadie usa. */
-    const desafio = APP.desafio.deHoy();
-    const hecho = Math.min(APP.desafio.progreso(), desafio.meta);
-    const listo = APP.desafio.cumplido();
-    const porCobrar = APP.desafio.pendienteDeCobro();
-
-    return (
-      '<div class="tarjeta" style="margin-top:14px;' +
-      (listo ? "border-color:var(--dorado);background:rgba(255,200,0,.09)" : "") + '">' +
-      '<div class="fila">' +
-      '<span style="font-size:26px">' + desafio.emo + "</span>" +
-      '<span class="crece">' +
-      '<span class="mini fuerte apagado" style="display:block;letter-spacing:.06em">DESAFÍO DE HOY</span>' +
-      '<span class="fuerte">' + d.esc(desafio.texto) + "</span></span>" +
-      (listo ? '<span style="font-size:22px">✅</span>' : "") +
-      "</div>" +
-      '<div class="fila" style="margin-top:10px">' +
-      '<div class="barra-prog fina"><i style="width:' +
-      Math.round((hecho / desafio.meta) * 100) + '%;background:var(--dorado)"></i></div>' +
-      '<span class="mini fuerte apagado" style="white-space:nowrap">' +
-      hecho + "/" + desafio.meta + "</span></div>" +
-      (porCobrar
-        ? '<button class="btn" style="margin-top:12px" data-accion="cobrar-desafio">🎁 Reclamar +' +
-          APP.desafio.PREMIO_XP + " XP</button>"
-        : "") +
-      "</div>"
-    );
-  }
-
-  function oscurecer(hex) {
-    // Un tono más oscuro del color de la unidad para la sombra del nodo.
-    const n = parseInt(hex.slice(1), 16);
-    const r = Math.max(0, ((n >> 16) & 255) - 40);
-    const g = Math.max(0, ((n >> 8) & 255) - 40);
-    const b = Math.max(0, (n & 255) - 40);
-    return "rgb(" + r + "," + g + "," + b + ")";
-  }
-
-  /* ---------------- Práctica ---------------- */
 
   function practica() {
     const pendientes = APP.srs.pendientes().length;
     const errores = A().estado().errores.filter(function (e) { return !e.superado; }).length;
     return (
       "<h1>Práctica</h1>" +
-      '<p class="apagado chico">Acá no se pierden vidas. Practica todo lo que quieras.</p>' +
-
-      tarjetaContrarreloj() +
+      '<p class="apagado chico">Lo que quieras, cuando quieras. Nada de esto se corta ni se acaba.</p>' +
 
       tarjetaAccion("♻️", "Repaso del día", pendientes
         ? pendientes + " palabras te toca repasar hoy"
@@ -293,23 +281,6 @@
     );
   }
 
-  function tarjetaContrarreloj() {
-    /* Va arriba de todo y con su propio color: es lo que se toca cuando hay
-     * cinco minutos muertos en la fila del supermercado, que es cuando de
-     * verdad se practica. */
-    const marca = A().mejorMarca("contrarreloj");
-    return (
-      '<button class="tarjeta fila" style="width:100%;text-align:left;cursor:pointer;' +
-      'border-color:var(--dorado);background:rgba(255,200,0,.09)" data-accion="contrarreloj">' +
-      '<span style="font-size:30px">⏱️</span>' +
-      '<span class="crece"><span class="fuerte" style="display:block">Contrarreloj</span>' +
-      '<span class="chico apagado">' +
-      (marca ? "Tu récord: " + marca + " en un minuto" : "Un minuto. ¿Cuántas puedes?") +
-      "</span></span>" +
-      '<span class="apagado">›</span></button>'
-    );
-  }
-
   function tarjetaAccion(emo, titulo, sub, accion, activa) {
     return (
       '<button class="tarjeta fila" style="width:100%;text-align:left;cursor:pointer' +
@@ -323,85 +294,82 @@
 
   /* ---------------- Progreso ---------------- */
 
+  /* El registro de estudio.
+   *
+   * Antes esta pantalla decía nivel, XP, racha y logros: cuatro cifras que
+   * suben solas con el uso y ninguna que respondiera "¿estoy aprendiendo?".
+   * Ahora dice lo que sí lo responde: cuánto tiempo llevas, cuántas reglas te
+   * salen solas, cuántas palabras tienes aprendidas y cuáles se te siguen
+   * olvidando —que es lo único de esta pantalla sobre lo que se puede actuar.
+   */
   function progreso() {
-    const e = A().estado();
-    const n = A().nivel();
     const r = APP.srs.resumen();
+    const reglas = APP.reglas.resumen(3);
     const sem = A().semana();
-    const maxSem = Math.max(e.metaDiaria, Math.max.apply(null, sem.map(function (x) { return x.xp; })));
+    const maxSem = Math.max(20, Math.max.apply(null, sem.map(function (x) { return x.minutos; })));
     const nombresDia = ["D", "L", "M", "M", "J", "V", "S"];
+    const errores = A().estado().errores.filter(function (x) { return !x.superado; });
 
     return (
-      "<h1>Tu progreso</h1>" +
+      "<h1>Registro</h1>" +
 
-      '<div class="tarjeta">' +
-      '<div class="fila entre"><span class="fuerte">Nivel ' + n.nivel + "</span>" +
-      '<span class="mini apagado">' + (n.xp - n.desde) + " / " + (n.hasta - n.desde) + " XP</span></div>" +
-      '<div class="barra-prog" style="margin-top:8px"><i style="width:' +
-      Math.round(((n.xp - n.desde) / (n.hasta - n.desde)) * 100) + '%"></i></div>' +
-      '<div class="mini apagado" style="margin-top:6px">' + n.xp + " XP en total</div></div>" +
+      '<div class="cifras">' +
+      cifra(A().minutosTotales(), "minutos de estudio") +
+      cifra(A().diasEstudiados(), "días") +
+      cifra(reglas.dominadas + " de " + reglas.total, "reglas dominadas") +
+      cifra(r.aprendidas, "palabras aprendidas") +
+      "</div>" +
 
-      '<div class="tarjeta"><h3>Esta semana</h3>' +
+      '<section class="bloque"><h2>Últimos siete días</h2>' +
       '<div class="semana">' +
       sem.map(function (x, i) {
-        const alto = Math.round((x.xp / maxSem) * 76);
-        const dia = new Date(x.fecha.split("-")[0], x.fecha.split("-")[1] - 1, x.fecha.split("-")[2]).getDay();
+        const alto = Math.round((x.minutos / maxSem) * 100);
         return (
-          '<div class="dia"><div class="bar ' + (x.xp >= e.metaDiaria ? "meta" : x.xp ? "hay" : "") +
-          '" style="height:' + Math.max(4, alto) + 'px" title="' + x.xp + ' XP"></div>' +
-          '<div class="et">' + nombresDia[dia] + "</div></div>"
+          '<div class="dia"><div class="bar ' + (x.minutos ? "hay" : "") +
+          '" style="height:' + Math.max(x.minutos ? 6 : 2, alto) + '%"></div>' +
+          '<div class="mini apagado">' + nombresDia[(new Date(x.fecha + "T12:00:00").getDay() + 7) % 7] + "</div></div>"
         );
       }).join("") +
       "</div>" +
-      '<div class="mini apagado centro">Dorado = meta cumplida (' + e.metaDiaria + " XP)</div></div>" +
+      '<p class="mini apagado">' + A().minutosDeLaSemana() + " minutos esta semana.</p></section>" +
 
-      '<div class="tarjeta"><h3>Vocabulario</h3>' +
-      fila("Aprendidas de memoria", r.aprendidas) +
-      fila("En proceso", r.enCurso) +
-      fila("Sin ver todavía", r.total - r.vistas) +
-      fila("Pendientes de repaso hoy", r.pendientes) +
-      '<div class="barra-prog" style="margin-top:10px"><i style="width:' +
-      Math.round((r.aprendidas / r.total) * 100) + '%"></i></div>' +
-      '<div class="mini apagado" style="margin-top:6px">' + r.aprendidas + " de " + r.total +
-      " palabras y frases del curso</div></div>" +
-
-      '<div class="tarjeta"><h3>Racha</h3>' +
-      fila("Racha actual", dias(A().rachaViva())) +
-      fila("Tu mejor racha", dias(e.racha.mejor)) +
-      fila("Escudos disponibles", e.racha.escudos) +
-      '<div class="mini apagado" style="margin-top:8px">Un escudo salva la racha si te saltas un día. ' +
-      "No se compran: se ganan quedándose.</div></div>" +
-
-      '<div class="tarjeta"><h3>Logros</h3><div class="logros">' +
-      APP.logros.todos().map(function (l) {
+      '<section class="bloque"><h2>El curso</h2>' +
+      APP.curriculo.NIVELES.map(function (n) {
+        const ls = APP.curriculo.leccionesDelNivel(n.id);
+        const hechas = ls.filter(function (l) { return A().leccion(l.id).coronas > 0; }).length;
+        const est = A().nivelCurso(n.id);
         return (
-          '<div class="logro' + (l.ganado ? " ganado" : "") + '" title="' + d.esc(l.pista) + '">' +
-          '<div class="emo">' + l.emo + "</div>" +
-          '<div class="nom">' + d.esc(l.nombre) + "</div></div>"
+          '<div class="fila-prog"><span class="et">' + d.esc(n.titulo) + "</span>" +
+          '<div class="linea-prog"><i style="width:' + Math.round((hechas / ls.length) * 100) + '%"></i></div>' +
+          '<span class="val">' + (est.aprobado ? "aprobado" : hechas + "/" + ls.length) + "</span></div>"
         );
       }).join("") +
-      "</div></div>" +
+      "</section>" +
 
-      (APP.srs.debiles(8).length
-        ? '<div class="tarjeta"><h3>Lo que más te cuesta</h3><ul class="lista-limpia">' +
-          APP.srs.debiles(8).map(function (id) {
-            const t = APP.datos.porId(id);
-            const s = APP.srs.tarjeta(id);
-            return (
-              '<li class="fila entre" style="padding:6px 0;border-bottom:1px solid var(--borde)">' +
-              '<span class="crece"><b>' + d.esc(t.en) + '</b><br><span class="mini apagado">' +
-              d.esc(t.es) + "</span></span>" +
-              '<button class="icono-btn" data-accion="audio" data-texto="' + d.esc(t.en) + '">🔊</button>' +
-              '<span class="pastilla">' + s.fallos + " ✗</span></li>"
-            );
+      '<section class="bloque"><h2>Vocabulario</h2>' +
+      fila("Para repasar hoy", r.pendientes) +
+      fila("Aprendidas", r.aprendidas) +
+      fila("Empezadas", r.enCurso) +
+      fila("Sin ver", r.total - r.vistas) +
+      fila("Total del curso", r.total) +
+      "</section>" +
+
+      '<section class="bloque"><h2>Lo que se te olvida</h2>' +
+      (errores.length
+        ? '<p class="mini apagado">Las que más veces has fallado. Son las que conviene mirar.</p>' +
+          errores.slice(0, 8).map(function (x) {
+            return '<div class="olvido"><b>' + d.esc(x.en || "") + "</b> · " + d.esc(x.es || "") +
+              '<span class="mini apagado">' + x.veces + (x.veces === 1 ? " vez" : " veces") + "</span></div>";
           }).join("") +
-          "</ul></div>"
-        : "")
+          '<button class="btn hueco chico" style="margin-top:10px" data-accion="errores">Practicarlas</button>'
+        : '<p class="mini apagado">Nada pendiente todavía.</p>') +
+      "</section>"
     );
   }
 
-  function dias(n) {
-    return n + (n === 1 ? " día" : " días");
+  function cifra(valor, etiqueta) {
+    return '<div class="cifra"><span class="n">' + valor + '</span><span class="et">' +
+      d.esc(etiqueta) + "</span></div>";
   }
 
   function fila(etiqueta, valor) {
@@ -419,17 +387,6 @@
     return (
       "<h1>Ajustes</h1>" +
 
-      '<div class="tarjeta"><h3>Meta diaria</h3>' +
-      '<div class="seg">' +
-      [["Suave", 20], ["Normal", 30], ["En serio", 50], ["Intensa", 80]].map(function (m) {
-        return (
-          '<button class="' + (e.metaDiaria === m[1] ? "activa" : "") + '" data-accion="meta" data-v="' +
-          m[1] + '">' + m[0] + "<br><span class='mini'>" + m[1] + " XP</span></button>"
-        );
-      }).join("") +
-      "</div>" +
-      '<div class="mini apagado" style="margin-top:8px">Una lección da entre 100 y 160 XP.</div></div>' +
-
       '<div class="tarjeta"><h3>Voz</h3>' +
       '<div class="chico apagado" style="margin-bottom:6px">Acento</div>' +
       '<div class="seg">' +
@@ -445,8 +402,6 @@
       "</div>" +
 
       '<div class="tarjeta"><h3>Cómo practicas</h3>' +
-      palanca("Vidas (corazones)", "corazones", a.corazones !== false,
-        "Con vidas apagadas puedes equivocarte sin que la lección se corte.") +
       palanca("Ejercicios de escribir", "teclado", a.teclado !== false,
         "Escribir en inglés en el teléfono es lento; puedes dejar sólo fichas y opciones.") +
       palanca("Ejercicios de hablar", "microfono", a.microfono !== false,
@@ -575,10 +530,6 @@
   function abrirLeccion(id) {
     const l = APP.curriculo.leccion(id);
     if (!l) return;
-    if (A().estado().ajustes.corazones !== false && A().vidas() <= 0) {
-      avisoSinVidas();
-      return;
-    }
     claseAntesDe(l, function () {
       const ejercicios = filtrar(APP.motor.sesionLeccion(l));
       APP.leccion.iniciar({
@@ -612,29 +563,6 @@
     APP.leccion.iniciar({ ejercicios: ejercicios, titulo: "Repaso", modo: "repaso", corazones: false, alTerminar: pintar });
   }
 
-  function repasoDeRescate() {
-    /* El repaso que devuelve las vidas. Es a propósito lo que más le conviene
-     * hacer en ese momento: en vez de castigarla con una espera, se le ofrece
-     * practicar justo lo que está fallando. */
-    let ejercicios = filtrar(APP.motor.sesionErrores(10));
-    if (ejercicios.length < 5) ejercicios = ejercicios.concat(filtrar(APP.motor.sesionRepaso(10)));
-    if (!ejercicios.length) {
-      A().llenarVidas();
-      pintar();
-      return;
-    }
-    APP.leccion.iniciar({
-      ejercicios: ejercicios,
-      titulo: "Recuperar vidas",
-      modo: "repaso",
-      corazones: false,
-      alTerminar: function () {
-        A().llenarVidas();
-        pintar();
-      },
-    });
-  }
-
   function errores() {
     const ejercicios = filtrar(APP.motor.sesionErrores(12));
     if (!ejercicios.length) {
@@ -650,31 +578,6 @@
     APP.leccion.iniciar({ ejercicios: ejercicios, titulo: id, modo: "practica", corazones: false, alTerminar: pintar });
   }
 
-  function contrarreloj() {
-    /* Sólo preguntas de tocar y seguir: escribir o hablar contra el reloj es
-     * frustrante, no rápido. Se arma una tanda larga porque en un minuto bueno
-     * se contestan más de veinte, y la lista se recorre en círculo. */
-    const banco = APP.datos.TEMAS.map(function (t) { return t.id; });
-    const ejercicios = APP.motor.sesionLeccion({
-      skills: banco,
-      tipos: ["elige-en", "elige-es", "escucha-elige"],
-      n: 45,
-    });
-    if (ejercicios.length < 5) {
-      d.avisar("Todavía no", "Necesitas practicar un poco más antes de correr contra el reloj.");
-      return;
-    }
-    APP.leccion.iniciar({
-      ejercicios: ejercicios,
-      titulo: "Contrarreloj",
-      modo: "contrarreloj",
-      corazones: false,
-      alTerminar: pintar,
-      alRepetir: contrarreloj,
-    });
-  }
-
-
   /* ---------------- Hojas emergentes ---------------- */
 
   function hoja(contenido, alTocar) {
@@ -689,6 +592,12 @@
       const a = b.getAttribute("data-accion");
       if (a === "cerrar-hoja") return velo.remove();
       if (a === "audio") return APP.audio.hablar(b.getAttribute("data-texto"));
+      /* Tocar una palabra funciona también dentro de una hoja, encima de la
+       * que ya está abierta. Sin esto, las palabras de la tabla de una clase
+       * se veían tocables y no hacían nada, que es peor que no ofrecerlo: la
+       * clase usa "I work here" para explicar los pronombres y quien no sabe
+       * qué es "work" no puede seguir el ejemplo. */
+      if (a === "palabra") return palabra(b.getAttribute("data-palabra"));
       if (alTocar) alTocar(a, b, velo);
     });
     return velo;
@@ -768,23 +677,6 @@
     return '<button class="btn azul chico" data-accion="audio" data-texto="' + d.esc(texto) + '">🔊</button>';
   }
 
-  function avisoSinVidas() {
-    hoja(
-      '<div class="centro">' + APP.mascota.svg("triste", 96) + "</div>" +
-      '<h2 class="centro">Sin vidas</h2>' +
-      '<p class="centro apagado chico">La próxima llega en ' + d.minutos(A().segundosParaVida()) +
-      ". Mientras tanto puedes practicar sin gastar vidas.</p>" +
-      '<button class="btn" data-accion="rescate">Recuperar practicando</button><div style="height:8px"></div>' +
-      '<button class="btn hueco" data-accion="cerrar-hoja">Ahora no</button>',
-      function (a, b, velo) {
-        if (a === "rescate") {
-          velo.remove();
-          repasoDeRescate();
-        }
-      }
-    );
-  }
-
   /* ---------------- Gramática ---------------- */
 
   /* ---------------- Reglas ---------------- */
@@ -844,22 +736,14 @@
       '<div class="clave-regla">' + d.esc(re.clave) + "</div>" +
       '<div class="explicacion">' + permitirNegrita(re.regla) + "</div>";
 
-    if (re.tabla) {
-      out += '<div class="tabla-caja"><table class="tabla"><thead><tr>' +
-        re.tabla.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
-        "</tr></thead><tbody>" +
-        re.tabla.filas.map(function (f) {
-          return "<tr>" + f.map(function (c) { return "<td>" + d.esc(c) + "</td>"; }).join("") + "</tr>";
-        }).join("") +
-        "</tbody></table></div>";
-    }
+    if (re.tabla) out += tablaTocable(re.tabla);
 
     /* El error típico, mal y bien, uno encima del otro. Es lo que de verdad se
      * recuerda: la forma correcta sola no avisa de nada, porque el error que
      * cometes te parece correcto hasta que lo ves tachado al lado. */
     out +=
-      '<div class="trampa"><div class="mal">✗ ' + d.esc(re.error.mal) + "</div>" +
-      '<div class="bien">✓ ' + d.esc(re.error.bien) + "</div></div>";
+      '<div class="trampa"><div class="mal">✗ ' + tocablesEn(re.error.mal) + "</div>" +
+      '<div class="bien">✓ ' + tocablesEn(re.error.bien) + "</div></div>";
 
     out +=
       '<div class="mini apagado" style="margin-top:16px">' +
@@ -1189,6 +1073,18 @@
   function claseAntesDe(l, seguir) {
     const temas = (l.clase || []).map(function (id) { return APP.datosGramatica.tema(id); })
       .filter(Boolean);
+
+    /* Si la lección no declara clase pero practica una regla, la explicación
+     * de esa regla hace de clase. Así nunca se practica algo que no se ha
+     * explicado, y sobre todo nunca se explica una cosa para practicar otra,
+     * que es peor: deja la sensación de que la explicación no servía. */
+    if (!temas.length && l.reglas && l.reglas.length) {
+      const re = APP.datosReglas.regla(l.reglas[0]);
+      if (re) {
+        fichaReglaComoClase(re, seguir);
+        return;
+      }
+    }
     if (!temas.length) return seguir();
 
     let i = 0;
@@ -1199,17 +1095,12 @@
         '<div class="ficha-cabecera"><span class="emo-grande">' + t.emo + "</span>" +
         "<h2>" + d.esc(t.titulo) + "</h2></div>" +
         '<div class="explicacion">' + permitirNegrita(t.explicacion) + "</div>" +
-        (t.tabla
-          ? '<div class="tabla-caja"><table class="tabla"><thead><tr>' +
-            t.tabla.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
-            "</tr></thead><tbody>" +
-            t.tabla.filas.map(function (f) {
-              return "<tr>" + f.map(function (c) { return "<td>" + d.esc(c) + "</td>"; }).join("") + "</tr>";
-            }).join("") + "</tbody></table></div>"
-          : "") +
-        '<div class="trampa"><div class="mal">✗ ' + d.esc(t.trampa.mal) + "</div>" +
-        '<div class="bien">✓ ' + d.esc(t.trampa.bien) + "</div>" +
+        (t.tabla ? tablaTocable(t.tabla) : "") +
+        '<div class="trampa"><div class="mal">✗ ' + tocablesEn(t.trampa.mal) + "</div>" +
+        '<div class="bien">✓ ' + tocablesEn(t.trampa.bien) + "</div>" +
         '<div class="mini" style="margin-top:6px">' + d.esc(t.trampa.porque) + "</div></div>" +
+        '<div class="mini apagado centro" style="margin-top:10px">' +
+        "Toca cualquier palabra en inglés para ver qué significa.</div>" +
         '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">' +
         (ultimo ? "Entendido, a practicar" : "Siguiente") + "</button>" +
         (temas.length > 1
@@ -1225,6 +1116,40 @@
       );
     }
     mostrar();
+  }
+
+  function fichaReglaComoClase(re, seguir) {
+    hoja(
+      '<div class="ficha-cabecera"><span class="emo-grande">' + re.emo + "</span>" +
+      "<h2>" + d.esc(re.titulo) + "</h2></div>" +
+      '<div class="clave-regla">' + d.esc(re.clave) + "</div>" +
+      '<div class="explicacion">' + permitirNegrita(re.regla) + "</div>" +
+      (re.tabla ? tablaTocable(re.tabla) : "") +
+      '<div class="trampa"><div class="mal">✗ ' + tocablesEn(re.error.mal) + "</div>" +
+      '<div class="bien">✓ ' + tocablesEn(re.error.bien) + "</div></div>" +
+      '<div class="mini apagado centro" style="margin-top:10px">' +
+      "Toca cualquier palabra en inglés para ver qué significa.</div>" +
+      '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">Entendido, a practicar</button>',
+      function (acc, b, velo) {
+        if (acc !== "clase-seguir") return;
+        velo.remove();
+        seguir();
+      }
+    );
+  }
+
+  /* Las tablas de las clases llevan ejemplos en inglés —"I work here"— y hasta
+   * ahora no había forma de saber qué era "work". Esperar que alguien que
+   * empieza ya conozca las palabras de los ejemplos es justo el supuesto que
+   * hace que una explicación no se entienda. */
+  function tablaTocable(t) {
+    return '<div class="tabla-caja"><table class="tabla"><thead><tr>' +
+      t.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
+      "</tr></thead><tbody>" +
+      t.filas.map(function (f) {
+        return "<tr>" + f.map(function (c) { return "<td>" + tocablesEn(c) + "</td>"; }).join("") + "</tr>";
+      }).join("") +
+      "</tbody></table></div>";
   }
 
   function pantallaGramatica() {
@@ -1904,7 +1829,6 @@
           function () {
             v.remove();
             pintar();
-            APP.fiesta.confeti({ cantidad: 60 });
             d.avisar(
               crear ? "Cuenta creada" : "Listo",
               "Tu avance quedó guardado en la cuenta. Entra con el mismo correo en tus otros aparatos."
@@ -2019,11 +1943,15 @@
         pintar();
         return;
       }
+      if (a === "desplegar") {
+        const id = b.getAttribute("data-id");
+        desplegadas[id] = !desplegadas[id];
+        return pintar();
+      }
       if (a === "leccion") return abrirLeccion(b.getAttribute("data-id"));
       if (a === "repaso") return repaso();
       if (a === "errores") return errores();
       if (a === "tema") return tema(b.getAttribute("data-id"));
-      if (a === "contrarreloj") return contrarreloj();
       if (a === "reglas") { vista = "reglas"; return pintar(); }
       if (a === "tutor") { vista = "tutor"; return pintar(); }
       if (a === "tutor-enviar") {
@@ -2067,33 +1995,10 @@
       if (a === "gramatica") return pantallaGramatica();
       if (a === "verbos") return pantallaVerbos();
       if (a === "sonidos") return pantallaSonidos();
-      if (a === "cobrar-desafio") {
-        const premio = APP.desafio.cobrar();
-        pintar();
-        if (!premio) return;
-        APP.audio.efectos.record();
-        APP.fiesta.confeti({ cantidad: 100 });
-        d.avisar(
-          "¡Desafío cumplido!",
-          "+" + premio.xp + " XP" +
-            (premio.escudo ? " y un escudo para tu racha." : ". Ya tienes todos los escudos.")
-        );
-        return;
-      }
       if (a === "frasario") return frasario();
       if (a === "canciones") return canciones();
-      if (a === "ver-vidas") {
-        if (A().vidas() <= 0) avisoSinVidas();
-        return;
-      }
       if (a === "audio") return APP.audio.hablar(b.getAttribute("data-texto"));
 
-      if (a === "meta") {
-        e.metaDiaria = parseInt(b.getAttribute("data-v"), 10);
-        A().guardar();
-        pintar();
-        return;
-      }
       if (a === "acento") {
         e.ajustes.acento = b.getAttribute("data-v");
         A().guardar();
@@ -2112,7 +2017,6 @@
       if (a === "palanca") {
         const k = b.getAttribute("data-clave");
         e.ajustes[k] = e.ajustes[k] === false;
-        if (k === "corazones" && e.ajustes[k]) A().llenarVidas();
         A().guardar();
         pintar();
         return;
@@ -2160,7 +2064,6 @@
     palabra: palabra,
     enganchar: enganchar,
     aplicarTema: aplicarTema,
-    repasoDeRescate: repasoDeRescate,
     irA: function (t) { tab = t; pintar(); },
   };
 })();

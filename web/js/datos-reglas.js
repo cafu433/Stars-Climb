@@ -139,6 +139,80 @@
   /* ---------------- Las reglas ---------------- */
 
   const REGLAS = [
+    /* ===================== Las piezas de la frase ===================== */
+    {
+      id: "pronombres",
+      grupo: "Las piezas de la frase",
+      nivel: 1,
+      emo: "👤",
+      titulo: "Los pronombres",
+      resumen: "Quién hace la acción — y por qué no se pueden callar",
+      regla:
+        "En español el sujeto se puede callar: “trabajo acá” se entiende sin decir “yo”, porque la " +
+        "terminación del verbo ya lo dice. En inglés el verbo casi no cambia, así que el pronombre " +
+        "es <b>obligatorio</b>: sin él, la frase queda coja.\n\n" +
+        "Son ocho y hay que sabérselos de memoria, porque todo lo demás se apoya en ellos: la forma " +
+        "de <i>to be</i>, la -s de tercera persona y el auxiliar dependen de cuál sea.\n\n" +
+        "<b>I</b> va siempre con mayúscula, esté donde esté en la frase. Es la única palabra del " +
+        "inglés con esa regla.\n\n" +
+        "Ojo con <b>it</b>: en español las cosas son “él” o “ella” —la mesa, el auto— pero en inglés " +
+        "las cosas y los animales son <b>it</b>. Decir “she is my car” suena rarísimo.",
+      tabla: {
+        cabecera: ["Español", "Inglés", "Ejemplo"],
+        filas: [
+          ["yo", "I", "I work here — trabajo acá"],
+          ["tú, usted", "you", "You work here — trabajas acá"],
+          ["él", "he", "He works here — él trabaja acá"],
+          ["ella", "she", "She works here — ella trabaja acá"],
+          ["eso (cosas, animales)", "it", "It works well — funciona bien"],
+          ["nosotros", "we", "We work here — trabajamos acá"],
+          ["ustedes", "you", "You work here — ustedes trabajan acá"],
+          ["ellos, ellas", "they", "They work here — ellos trabajan acá"],
+        ],
+      },
+      clave: "El pronombre nunca se calla. Y las cosas son “it”, no “he” ni “she”.",
+      error: { mal: "Is my sister.", bien: "She is my sister." },
+      ejemplos: [
+        { en: "I work in accounting.", es: "Trabajo en contabilidad." },
+        { en: "She is my sister.", es: "Ella es mi hermana." },
+      ],
+      generar: function (rnd) {
+        const CASOS = [
+          { es: "yo", ok: "I", otras: ["you", "he", "we"] },
+          { es: "tú", ok: "you", otras: ["I", "he", "they"] },
+          { es: "él", ok: "he", otras: ["she", "it", "you"] },
+          { es: "ella", ok: "she", otras: ["he", "it", "they"] },
+          { es: "nosotros", ok: "we", otras: ["they", "you", "I"] },
+          { es: "ellos", ok: "they", otras: ["we", "you", "he"] },
+          { es: "ustedes", ok: "you", otras: ["they", "we", "he"] },
+          { es: "el auto (una cosa)", ok: "it", otras: ["he", "she", "they"], porque: "las cosas son it, no he ni she" },
+          { es: "el perro (un animal)", ok: "it", otras: ["he", "she", "we"], porque: "los animales son it" },
+          { es: "mi hermana", ok: "she", otras: ["he", "it", "they"] },
+          { es: "mi jefe (hombre)", ok: "he", otras: ["she", "it", "we"] },
+          { es: "las facturas", ok: "they", otras: ["it", "we", "she"], porque: "varias cosas son they" },
+          { es: "mi computador", ok: "it", otras: ["he", "they", "she"], porque: "las cosas son it" },
+          { es: "mis padres", ok: "they", otras: ["we", "you", "he"] },
+        ];
+        const CONTEXTOS = [
+          { en: "___ work here.", es: "@ trabaja(n) acá." },
+          { en: "___ are ready.", es: "@ está(n) listo(s)." },
+          { en: "___ is my friend.", es: "@ es mi amigo." },
+          { en: "Where is ___?", es: "¿Dónde está @?" },
+        ];
+        const c = alAzar(CASOS, rnd);
+        // Frases sueltas la mitad de las veces y en contexto la otra mitad:
+        // reconocer el pronombre aislado es más fácil que ponerlo en su sitio.
+        const suelto = (rnd || Math.random)() < 0.5;
+        return {
+          frase: suelto ? "___" : "___ …",
+          es: "¿Cómo se dice “" + c.es + "”?",
+          opciones: barajar([c.ok].concat(c.otras.slice(0, 3)), rnd),
+          ok: c.ok,
+          porque: c.porque || (c.es + " → " + c.ok),
+        };
+      },
+    },
+
     /* ===================== El verbo to be ===================== */
     {
       id: "am-is-are",

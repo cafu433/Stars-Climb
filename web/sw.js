@@ -8,8 +8,14 @@
  * Para publicar una versión nueva hay que subir VERSION. Al cambiar, el service
  * worker nuevo borra las cachés viejas y toma el control de inmediato; si no se
  * sube, los teléfonos que ya la instalaron seguirían con la versión vieja.
+ *
+ * Subir VERSION es necesario pero no basta, y esto costó descubrirlo: aunque el
+ * service worker nuevo tome el control, la página que ya está abierta sigue
+ * ejecutando el JavaScript que cargó al principio. Quien recarga una vez ve la
+ * versión vieja y concluye que la actualización no llegó. Por eso app.js
+ * escucha 'controllerchange' y recarga sola. Las dos piezas van juntas.
  */
-const VERSION = "stars-v4";
+const VERSION = "stars-v8";
 
 const CASCO = [
   ".",
@@ -17,8 +23,6 @@ const CASCO = [
   "manifest.webmanifest",
   "css/app.css",
   "js/dom.js",
-  "js/fiesta.js",
-  "js/mascota.js",
   "js/almacen.js",
   "js/datos.js",
   "js/datos-verbos.js",
@@ -39,8 +43,6 @@ const CASCO = [
   "js/diccionario.js",
   "js/examen.js",
   "js/tutor.js",
-  "js/logros.js",
-  "js/desafio.js",
   "js/cuenta.js",
   "js/leccion.js",
   "js/pantallas.js",
@@ -57,12 +59,25 @@ self.addEventListener("install", function (ev) {
       // que un icono que no esté no deje la aplicación sin instalar.
       return Promise.all(
         CASCO.map(function (u) {
-          return c.add(u).catch(function () {});
+          /* cache: "reload" obliga a ir a la red de verdad, saltándose la
+           * caché del propio navegador.
+           *
+           * Sin esto la actualización no llega nunca, y de la peor manera:
+           * sin ningún error. El navegador tiene guardado el archivo viejo,
+           * este fetch se lo sirve desde ahí, y el service worker nuevo acaba
+           * guardando en su caché nueva exactamente el mismo código viejo.
+           * Todo parece correcto —el despliegue en verde, la versión subida,
+           * la caché renovada— y los cambios no aparecen. */
+          return c.add(new Request(u, { cache: "reload" })).catch(function () {});
         })
       );
+    // skipWaiting va DESPUÉS de guardar, no antes. Si se llama de entrada, el
+    // service worker nuevo puede activarse con la caché a medio llenar y
+    // borrar la vieja antes de tener con qué reemplazarla.
+    }).then(function () {
+      return self.skipWaiting();
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", function (ev) {

@@ -112,6 +112,18 @@
    * una palabra suelta, por ejemplo) y el generador simplemente prueba otro.
    */
 
+  /* Qué partes de un ejercicio están en inglés.
+   *
+   * Hace falta para poder tocar una palabra y ver qué significa: si se hicieran
+   * tocables las palabras españolas, tocar "conocerte" respondería "no está en
+   * el curso", que es absurdo. Y si no se marca nada, la función no se puede
+   * ofrecer en los ejercicios —que es justo donde más falta hace, porque una
+   * pregunta con una palabra que no conoces no se puede contestar—.
+   *
+   * Se anota acá, al construir, y no se adivina al pintar: el mismo tipo
+   * "escribe" sirve para traducir (enunciado en español) y para el dictado
+   * (sin enunciado), y el mismo "arma" va en los dos sentidos.
+   */
   const constructores = {
     "elige-en": function (t, banco) {
       const malos = distractores(t, banco, "en", 3);
@@ -132,6 +144,8 @@
         audioAlAcertar: t.en,
         respuesta: t.en,
         nota: t.nota,
+        promptEn: false,
+        opcionesEn: true,
       };
     },
 
@@ -153,6 +167,8 @@
         opciones: opciones,
         respuesta: t.es,
         nota: t.nota,
+        promptEn: true,
+        opcionesEn: false,
       };
     },
 
@@ -174,6 +190,7 @@
         opciones: opciones,
         respuesta: t.en,
         traduccion: t.es,
+        opcionesEn: true,
       };
     },
 
@@ -189,6 +206,8 @@
         fichas: revolver(piezas.concat(fichasSenuelo(t, banco, piezas))),
         audioAlAcertar: t.en,
         idioma: "en",
+        promptEn: false,
+        fichasEn: true,
       };
     },
 
@@ -204,6 +223,8 @@
         respuesta: t.es,
         fichas: revolver(piezas),
         idioma: "es",
+        promptEn: true,
+        fichasEn: false,
       };
     },
 
@@ -217,6 +238,7 @@
         promptIcon: t.icon,
         respuesta: t.en,
         audioAlAcertar: t.en,
+        promptEn: false,
       };
     },
 
@@ -244,6 +266,7 @@
         traduccion: t.es,
         audio: t.en,
         respuesta: t.en,
+        promptEn: true,
       };
     },
   };
@@ -323,6 +346,8 @@
       respuesta: correcta,
       explicacion: explicacion,
       traduccion: v.es,
+      oracionEn: true,
+      opcionesEn: true,
     };
   }
 
@@ -337,6 +362,8 @@
       }),
       respuesta: it.correct,
       explicacion: it.es,
+      oracionEn: true,
+      opcionesEn: true,
     };
   }
 
@@ -355,6 +382,7 @@
       ]),
       respuesta: objetivo,
       explicacion: p.tip,
+      opcionesEn: true,
     };
   }
 
@@ -371,6 +399,9 @@
       ]),
       respuesta: formal ? p.formal : p.informal,
       explicacion: "Formal: “" + p.formal + "”. Informal: “" + p.informal + "”.",
+      // El enunciado ("En una reunión de trabajo…") va en español.
+      promptEn: false,
+      opcionesEn: true,
     };
   }
 
@@ -380,8 +411,11 @@
     return {
       tipo: "pares",
       enunciado: "Une cada palabra con su significado",
+      // Sólo el lado inglés se puede tocar: el español no hay nada que
+      // consultar, y ofrecerlo sólo daría "no está en el curso".
       izquierda: revolver(elegidas.map(function (t) { return { id: t.id, texto: t.en, lado: "en" }; })),
       derecha: revolver(elegidas.map(function (t) { return { id: t.id, texto: t.es, lado: "es" }; })),
+      izquierdaEn: true,
       tarjetas: elegidas.map(function (t) { return t.id; }),
     };
   }

@@ -15,3 +15,13 @@
 # texto plano; con el tipo equivocado, Android no ofrece instalar la aplicación.
 /manifest.webmanifest
   Content-Type: application/manifest+json
+
+# Los .js y el .css llevan siempre el mismo nombre, así que no se pueden dejar
+# guardados: el navegador se quedaría con el código viejo, y se lo serviría al
+# service worker cuando éste fuera a buscar la versión nueva. Los cambios no
+# aparecerían y no habría ningún error que lo explicara.
+/js/*
+  Cache-Control: no-cache, must-revalidate
+
+/css/*
+  Cache-Control: no-cache, must-revalidate

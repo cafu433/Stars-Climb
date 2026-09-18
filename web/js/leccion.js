@@ -17,19 +17,11 @@
   let S = null;
   let raiz = null;
 
-  const XP_BASE = 10;
-  const XP_COMBO = 5;
-
-  /* Contrarreloj: un minuto, y cada acierto compra dos segundos más.
-   *
-   * Los números están puestos para que una buena racha se sienta imparable
-   * —acertando rápido el reloj sube en vez de bajar— y un par de errores
-   * duelan sin cortar la partida de golpe. */
-  const SEGUNDOS_CONTRARRELOJ = 60;
-  const SEGUNDOS_POR_ACIERTO = 2;
-  const SEGUNDOS_POR_ERROR = 3;
-
-  let tictac = null;
+  /* Acá vivían el contrarreloj, las vidas, los puntos y la racha de aciertos.
+   * Se quitaron enteros, no se escondieron: una capa de juego no es neutra.
+   * El contrarreloj premia contestar rápido, y contestar rápido en un idioma
+   * que estás aprendiendo significa contestar con lo que ya sabías; las vidas
+   * meten urgencia, y la urgencia empuja a adivinar en vez de pensar. */
 
   function iniciar(op) {
     /* Si ya hay una lección abierta, se cierra antes. Sin esto, dos toques
@@ -50,15 +42,11 @@
       total: op.ejercicios.length,
       aciertos: 0,
       fallos: 0,
-      combo: 0,
-      mejorCombo: 0,
-      xp: 0,
       inicio: Date.now(),
       reintentos: [],
       respuesta: null,
       corregido: null,
       falladosIds: [],
-      reloj: null,
       /* En modo examen se guarda qué se acertó y qué no, pero no se enseña
        * hasta el final. Saber al instante si acertaste cambia cómo contestas
        * las siguientes —te confías o te bloqueas— y entonces ya no se está
@@ -66,10 +54,6 @@
       examen: op.examen || null,
       aciertosExamen: {},
     };
-
-    if (S.modo === "contrarreloj") {
-      S.reloj = { fin: Date.now() + SEGUNDOS_CONTRARRELOJ * 1000, ultimoTic: 0 };
-    }
 
     if (!S.ejercicios.length) {
       d.avisar("Nada que practicar", "Avanza un poco en el camino y vuelve: el repaso se llena solo.");
@@ -83,41 +67,6 @@
     document.body.style.overflow = "hidden";
     engancharEventos();
     pintar();
-    if (S.reloj) arrancarReloj();
-  }
-
-  function arrancarReloj() {
-    detenerReloj();
-    tictac = setInterval(function () {
-      if (!S || !S.reloj) return detenerReloj();
-      const quedan = segundosQuedan();
-      // Sólo se redibuja la barra, no la pantalla entera: repintar el ejercicio
-      // cada segundo perdería lo que la persona lleva tocado.
-      const barra = d.$("#reloj-barra", raiz);
-      const numero = d.$("#reloj-numero", raiz);
-      if (barra) barra.style.width = Math.min(100, (quedan / SEGUNDOS_CONTRARRELOJ) * 100) + "%";
-      if (numero) numero.textContent = quedan;
-      if (quedan <= 5 && quedan > 0 && S.reloj.ultimoTic !== quedan) {
-        S.reloj.ultimoTic = quedan;
-        APP.audio.efectos.tic();
-      }
-      if (quedan <= 0) {
-        detenerReloj();
-        terminar();
-      }
-    }, 250);
-  }
-
-  function detenerReloj() {
-    if (tictac) {
-      clearInterval(tictac);
-      tictac = null;
-    }
-  }
-
-  function segundosQuedan() {
-    if (!S || !S.reloj) return 0;
-    return Math.max(0, Math.ceil((S.reloj.fin - Date.now()) / 1000));
   }
 
   function ajuste(k) {
@@ -125,7 +74,6 @@
   }
 
   function cerrar() {
-    detenerReloj();
     APP.audio.callar();
     APP.audio.detenerEscucha();
     if (raiz && raiz.parentNode) raiz.parentNode.removeChild(raiz);
@@ -156,37 +104,15 @@
   }
 
   function cabecera(avance) {
-    if (S.reloj) return cabeceraReloj();
-    const vidas = APP.almacen.vidas();
+    /* La barra dice dónde vas y nada más. Antes llevaba corazones y un contador
+     * de puntos: dos cosas que no son inglés compitiendo por la atención con
+     * el ejercicio, que sí lo es. */
     return (
       '<div class="barra">' +
       '<button class="icono-btn" data-accion="salir" aria-label="Salir">✕</button>' +
       '<div class="barra-prog"><i style="width:' + avance + '%"></i></div>' +
-      (S.corazones
-        ? '<span class="contador vidas">❤️ <span class="n">' + vidas + "</span></span>"
-        : '<span class="contador gemas">⚡ <span class="n">' + S.xp + "</span></span>") +
-      "</div>" +
-      (S.combo >= 3
-        ? '<div class="centro mini fuerte" style="color:#ff9600;margin:-4px 0 6px">🔥 ' +
-          S.combo + " seguidas · x" + multiplicador().toFixed(1) + " XP</div>"
-        : "")
-    );
-  }
-
-  function cabeceraReloj() {
-    const quedan = segundosQuedan();
-    return (
-      '<div class="barra">' +
-      '<button class="icono-btn" data-accion="salir" aria-label="Salir">✕</button>' +
-      '<div class="reloj"><i id="reloj-barra" style="width:' +
-      Math.min(100, (quedan / SEGUNDOS_CONTRARRELOJ) * 100) + '%"></i></div>' +
-      '<span class="contador"><span id="reloj-numero" class="n">' + quedan + "</span>s</span>" +
-      '<span class="contador gemas">✓ <span class="n">' + S.aciertos + "</span></span>" +
-      "</div>" +
-      (S.combo >= 3
-        ? '<div class="centro mini fuerte" style="color:#ff9600;margin:-4px 0 6px">🔥 ' +
-          S.combo + " seguidas</div>"
-        : "")
+      '<span class="contador paso">' + Math.min(S.i + 1, S.total) + "/" + S.total + "</span>" +
+      "</div>"
     );
   }
 
@@ -225,7 +151,7 @@
     if (ej.promptHex) out += '<div class="muestra-color" style="background:' + d.esc(ej.promptHex) + '"></div>';
     else if (ej.promptIcon) out += '<div class="emoji-grande">' + d.esc(ej.promptIcon) + "</div>";
     if (ej.prompt) {
-      out += '<div class="prompt-grande">' + d.esc(ej.prompt) + "</div>";
+      out += '<div class="prompt-grande">' + marcar(ej.prompt, ej.promptEn) + "</div>";
       if (ej.audio) out += botonAudio(ej.audio, "Escuchar");
     }
     return out;
@@ -257,7 +183,7 @@
         return (
           '<button class="opcion' + claseOpcion(ej, o, i) + '" data-accion="opcion" data-i="' + i + '">' +
           (o.icon ? '<span class="emo">' + d.esc(o.icon) + "</span>" : "") +
-          "<span>" + d.esc(o.texto) + "</span></button>"
+          "<span>" + marcar(o.texto, ej.opcionesEn) + "</span></button>"
         );
       }).join("") +
       "</div>"
@@ -275,7 +201,7 @@
       ej.opciones.map(function (o, i) {
         return (
           '<button class="opcion' + claseOpcion(ej, o, i) + '" data-accion="opcion" data-i="' + i + '">' +
-          "<span>" + d.esc(o.texto) + "</span>" +
+          "<span>" + marcar(o.texto, ej.opcionesEn) + "</span>" +
           (o.simbolo ? '<span class="ipa">/' + d.esc(o.simbolo) + "/</span>" : "") +
           "</button>"
         );
@@ -289,7 +215,7 @@
     return (
       '<div class="enunciado">' + d.esc(ej.enunciado) + "</div>" +
       (ej.audio ? '<div style="margin-bottom:10px">' + botonAudio(ej.audio) + "</div>" : "") +
-      '<div class="tarjeta plana"><div class="fuerte">' + d.esc(ej.prompt) + "</div></div>" +
+      '<div class="tarjeta plana"><div class="fuerte">' + marcar(ej.prompt, ej.promptEn) + "</div></div>" +
       '<div class="renglon" id="renglon">' +
       puestas.map(function (p, i) {
         return '<button class="ficha" data-accion="quitar" data-i="' + i + '">' + d.esc(p.texto) + "</button>";
@@ -336,7 +262,8 @@
     const grabando = S.respuesta && S.respuesta.grabando;
     return (
       '<div class="enunciado">' + d.esc(ej.enunciado) + "</div>" +
-      '<div class="tarjeta"><div class="prompt-grande" style="font-size:22px">' + d.esc(ej.prompt) + "</div>" +
+      '<div class="tarjeta"><div class="prompt-grande" style="font-size:22px">' +
+      marcar(ej.prompt, ej.promptEn) + "</div>" +
       '<div class="apagado chico">' + d.esc(ej.traduccion || "") + "</div>" +
       '<div style="margin-top:10px">' + botonAudio(ej.audio) + "</div></div>" +
       '<div class="centro">' +
@@ -359,11 +286,13 @@
     return (
       '<div class="enunciado">' + d.esc(ej.enunciado) + "</div>" +
       '<div class="tarjeta"><div class="prompt-grande" style="font-size:22px">' +
-      d.esc(partes[0]) + '<span style="color:var(--azul)">_____</span>' + d.esc(partes[1] || "") +
+      marcar(partes[0], ej.oracionEn) + '<span style="color:var(--azul)">_____</span>' +
+      marcar(partes[1] || "", ej.oracionEn) +
       "</div></div>" +
       '<div class="opciones">' +
       ej.opciones.map(function (o, i) {
-        return '<button class="opcion' + claseOpcion(ej, o, i) + '" data-accion="opcion" data-i="' + i + '"><span>' + d.esc(o.texto) + "</span></button>";
+        return '<button class="opcion' + claseOpcion(ej, o, i) + '" data-accion="opcion" data-i="' + i + '"><span>' +
+          marcar(o.texto, ej.opcionesEn) + "</span></button>";
       }).join("") +
       "</div>"
     );
@@ -409,7 +338,21 @@
     return out;
   }
 
+  /* Una frase que es sólo el hueco —"___" o "___ …"— no es una frase: es una
+   * pregunta suelta, como "¿cómo se dice 'el auto'?". Dibujarla igual dejaba
+   * una raya azul flotando sin nada alrededor y la pregunta de verdad en letra
+   * chica debajo, que es justo al revés de lo que hay que leer primero. */
+  function sinContexto(ej) {
+    return String(ej.frase).replace(/_{3}/g, "").replace(/[\s…·.]/g, "") === "";
+  }
+
   function cabeceraRegla(ej) {
+    if (sinContexto(ej)) {
+      return (
+        '<div class="enunciado">' + d.esc(ej.tituloRegla) + "</div>" +
+        '<div class="prompt-grande">' + d.esc(ej.es) + "</div>"
+      );
+    }
     return (
       '<div class="enunciado">' + d.esc(ej.tituloRegla) + "</div>" +
       '<div class="frase-regla">' + huecoPartido(ej) + "</div>" +
@@ -495,6 +438,17 @@
   /* Envuelve cada palabra inglesa en algo que se puede tocar. El texto se
    * conserva exactamente: los separadores van tal cual, así que lo que se lee
    * es lo que se escribió. */
+  /* Pinta un texto haciendo tocable cada palabra, o tal cual si está en
+   * español. Se usa en todas partes: enunciados, opciones, fichas.
+   *
+   * Es la diferencia entre poder contestar y no poder. Una pregunta con una
+   * palabra que no conoces no se contesta: se adivina, y adivinar no enseña.
+   * Y el diccionario existía pero sólo funcionaba en los textos de lectura,
+   * que es donde menos falta hace, porque ahí sí hay glosario. */
+  function marcar(texto, enIngles) {
+    return enIngles ? tocables(texto) : d.esc(texto);
+  }
+
   function tocables(texto) {
     if (!APP.diccionario) return d.esc(texto);
     return APP.diccionario.trocear(texto).map(function (p) {
@@ -514,30 +468,19 @@
       return;
     }
 
-    if (S.reloj) {
-      // En contrarreloj se responde tocando y se sigue solo: un botón de
-      // "comprobar" en el medio son dos toques por pregunta y mata el ritmo.
-      const c = S.corregido;
-      pie.innerHTML = c
-        ? '<div class="pie ' + (c.correcto ? "bien" : "mal") + '">' +
-          '<div class="pie-titulo">' +
-          (c.correcto ? "+" + SEGUNDOS_POR_ACIERTO + "s" : "−" + SEGUNDOS_POR_ERROR + "s · " + d.esc(actual().respuesta)) +
-          "</div></div>"
-        : '<div class="pie"><div class="apagado chico centro">Toca la respuesta. Cada acierto suma ' +
-          SEGUNDOS_POR_ACIERTO + " segundos.</div></div>";
-      return;
-    }
-
     if (S.corregido) {
       const c = S.corregido;
       pie.className = "";
       pie.innerHTML =
-        '<div class="pie ' + (c.correcto ? "bien" : "mal") + ' entrada-animada">' +
+        /* Reconocer que no se sabe no merece el "Casi": no es un fallo, es haber
+         * pedido que te lo enseñen, que es lo que hay que hacer cuando no se
+         * sabe algo. */
+        '<div class="pie ' + (c.correcto ? "bien" : c.rendida ? "neutro" : "mal") + ' entrada-animada">' +
         '<div class="pie-titulo">' +
-        APP.mascota.svg(c.correcto ? "feliz" : "triste", 44) +
-        "<span>" + (c.correcto ? elogio() : "Casi") + "</span></div>" +
+        '<span class="marca">' + (c.correcto ? "✓" : c.rendida ? "→" : "✗") + "</span>" +
+        "<span>" + (c.correcto ? "Correcto" : c.rendida ? "Ahora ya la sabes" : "No es ésa") + "</span></div>" +
         (c.detalle ? '<div class="detalle">' + c.detalle + "</div>" : "") +
-        '<button class="btn ' + (c.correcto ? "" : "rojo") + '" data-accion="continuar">Continuar</button>' +
+        '<button class="btn ' + (c.correcto ? "" : c.rendida ? "azul" : "rojo") + '" data-accion="continuar">Continuar</button>' +
         "</div>";
       return;
     }
@@ -551,10 +494,26 @@
       : S.examen
         ? (S.i === S.ejercicios.length - 1 ? "Terminar el examen" : "Siguiente")
         : "Comprobar";
+    /* "No la sé" al lado de comprobar.
+     *
+     * Sin esta salida, una pregunta que no se entiende obliga a adivinar, y
+     * adivinar no enseña nada: si aciertas por suerte la aplicación cree que
+     * lo sabes y no te la vuelve a preguntar. Decir "no la sé" da mejor
+     * información que un acierto con un 25% de probabilidad.
+     *
+     * No cuesta vida a propósito. Si costara, saldría más barato adivinar, y
+     * entonces el botón no lo usaría nadie.
+     */
+    const puedeRendirse = ej.tipo !== "lectura-texto" && ej.tipo !== "pares" && ej.tipo !== "habla";
+
     pie.innerHTML =
       '<div class="pie">' +
       '<button class="btn" data-accion="comprobar"' + (listo ? "" : " disabled") + ">" +
       etiqueta + "</button>" +
+      (puedeRendirse
+        ? '<button class="btn hueco chico" style="margin-top:8px" data-accion="no-se">' +
+          "No la sé, muéstrame</button>"
+        : "") +
       "</div>";
   }
 
@@ -571,16 +530,6 @@
   }
 
   const ELOGIOS = ["¡Perfecto!", "¡Excelente!", "¡Muy bien!", "¡Eso es!", "¡Impecable!", "¡Vas volando!"];
-  function elogio() {
-    return ELOGIOS[Math.floor(Math.random() * ELOGIOS.length)];
-  }
-
-  function multiplicador() {
-    // El combo sube hasta 1.5x y ahí se queda: premia la concentración sin que
-    // una racha de suerte valga más que terminar la lección.
-    return Math.min(1.5, 1 + Math.floor(S.combo / 5) * 0.1);
-  }
-
   /* ---------------- Corrección ---------------- */
 
   function comprobar() {
@@ -623,7 +572,9 @@
        * la razón correcta y no por suerte; fallando es lo único que enseña,
        * porque ver sólo la respuesta buena enseña esa respuesta y no la regla. */
       if (ej.porque) detalle += (detalle ? "<br>" : "") + d.esc(ej.porque);
-      if (!correcto && ej.frase) {
+      // La frase entera sólo si aporta algo: si era sólo el hueco, repetirla
+      // es escribir la respuesta dos veces seguidas.
+      if (!correcto && ej.frase && !sinContexto(ej)) {
         detalle += "<br><span class=\"mini\">" + d.esc(APP.reglas.resuelta(ej)) + "</span>";
       }
       calidad = correcto ? 2 : 0;
@@ -658,25 +609,63 @@
 
     S.corregido = { correcto: correcto, detalle: detalle };
     if (correcto) {
-      APP.audio.efectos.bien(S.combo);
-      if (S.botonTocado) APP.fiesta.chispas(S.botonTocado);
+      APP.audio.efectos.bien(0);
     } else {
       APP.audio.efectos.mal();
     }
     S.botonTocado = null;
 
-    if (S.reloj) {
-      S.reloj.fin += (correcto ? SEGUNDOS_POR_ACIERTO : -SEGUNDOS_POR_ERROR) * 1000;
+    if (correcto && ej.audioAlAcertar) decir(ej.audioAlAcertar);
+    pintar();
+  }
+
+  /* Muestra la respuesta sin castigar.
+   *
+   * Cuenta como no sabida —vuelve pronto en el repaso y se repregunta antes de
+   * terminar la lección— pero no quita vida. La diferencia con fallar es real:
+   * fallar es haberlo intentado, esto es reconocer que no se sabe, y lo segundo
+   * merece que se lo enseñen, no que se lo castiguen.
+   */
+  function noLaSe() {
+    const ej = actual();
+    let detalle = "";
+
+    if (ej.tipo === "regla-elige" || ej.tipo === "regla-escribe") {
+      detalle = "Es <b>" + d.esc(ej.ok) + "</b>";
+      if (ej.frase && !sinContexto(ej)) {
+        detalle += "<br><span class=\"mini\">" + d.esc(APP.reglas.resuelta(ej)) + "</span>";
+      }
+      if (ej.porque) detalle += "<br>" + d.esc(ej.porque);
+    } else if (ej.tipo === "lectura-pregunta") {
+      detalle = "Es <b>" + d.esc(ej.ok) + "</b>";
+    } else {
+      detalle = "La respuesta es: <b>" + d.esc(ej.respuesta) + "</b>";
+      if (ej.explicacion) detalle += "<br>" + d.esc(ej.explicacion);
+      else if (ej.traduccion) detalle += "<br>" + d.esc(ej.traduccion);
+      if (ej.nota) detalle += "<br>🇬🇧 " + d.esc(ej.nota);
+    }
+
+    // Se repregunta antes de terminar: que te la enseñen y no volver a verla
+    // no sirve de nada. En un examen no, porque ahí se mide, no se enseña.
+    if (!S.examen) S.reintentos.push(ej);
+    if (ej.tarjetaId) {
+      APP.srs.registrar(ej.tarjetaId, 0);
+      const t = APP.datos.porId(ej.tarjetaId);
+      if (t) APP.almacen.anotarError(t.id, { en: t.en, es: t.es, skill: t.skill });
+    }
+    if (ej.regla && APP.reglas) APP.reglas.anotar(ej, false);
+
+    if (S.examen) {
+      S.aciertosExamen[S.i] = false;
+      S.respuesta = null;
+      S.i += 1;
+      if (S.i >= S.ejercicios.length) return terminar();
       pintar();
-      // Un respiro corto para ver la respuesta buena cuando se falló, y casi
-      // nada cuando se acertó: el ritmo es la mitad de la gracia del modo.
-      setTimeout(function () {
-        if (S && S.reloj) continuar();
-      }, correcto ? 380 : 950);
       return;
     }
 
-    if (correcto && ej.audioAlAcertar) decir(ej.audioAlAcertar);
+    S.corregido = { correcto: false, rendida: true, detalle: detalle };
+    if (ej.audio || ej.respuesta) decir(ej.audio || ej.respuesta);
     pintar();
   }
 
@@ -698,24 +687,18 @@
   function registrar(ej, correcto, calidad) {
     if (correcto) {
       S.aciertos += 1;
-      S.combo += 1;
-      S.mejorCombo = Math.max(S.mejorCombo, S.combo);
-      S.xp += Math.round(XP_BASE * multiplicador()) + (S.combo % 5 === 0 ? XP_COMBO : 0);
     } else {
       S.fallos += 1;
-      S.combo = 0;
       /* Vuelve a preguntarse antes de terminar: corregir en caliente es lo que
        * hace que el error no se repita mañana. En contrarreloj no, porque la
        * lista ya da vueltas sola; y en un examen tampoco, porque repreguntar
        * lo fallado convertiría la nota en "cuántas veces lo intentaste". */
-      if (!S.reloj && !S.examen) S.reintentos.push(ej);
+      if (!S.examen) S.reintentos.push(ej);
       if (ej.tarjetaId) S.falladosIds.push(ej.tarjetaId);
-      if (S.corazones) {
-        const quedan = APP.almacen.perderVida();
-        if (quedan <= 0) {
-          setTimeout(sinVidas, 900);
-        }
-      }
+      /* Equivocarse ya no cuesta nada. Las vidas existían para meter urgencia,
+       * y la urgencia empuja a adivinar: si fallar te echa, arriesgas menos y
+       * piensas menos. Acá el error es información —vuelve en el repaso y
+       * queda anotado— y no un castigo. */
     }
     // El dominio de una regla se lleva aparte del repaso espaciado: no es lo
     // mismo recordar una palabra que automatizar una regla.
@@ -734,14 +717,6 @@
     S.corregido = null;
     S.respuesta = null;
     S.i += 1;
-
-    if (S.reloj) {
-      if (segundosQuedan() <= 0) return terminar();
-      // La lista da vueltas: en contrarreloj se acaba el tiempo, no las
-      // preguntas.
-      if (S.i >= S.ejercicios.length) S.i = 0;
-      return pintar();
-    }
 
     if (S.i >= S.ejercicios.length) {
       if (S.reintentos.length) {
@@ -772,7 +747,6 @@
     APP.examen.aplicarNivelacion(rec);
     APP.almacen.estado().ajustes.nivelacionHecha = true;
     APP.almacen.guardar();
-    APP.almacen.sumarXp(S.xp);
 
     const n = APP.curriculo.nivel(rec.nivel);
     const primera = APP.curriculo.leccionesDelNivel(rec.nivel)[0];
@@ -787,10 +761,9 @@
         '<span class="cifra">' + p.bien + "/" + p.de + "</span></div>";
     }).join("");
 
-    APP.fiesta.confeti({ cantidad: 90 });
     raiz.innerHTML =
       '<div class="leccion-caja"><div class="leccion-cuerpo" style="display:flex;flex-direction:column;justify-content:center">' +
-      '<div class="centro confeti"><div class="diploma-emo">' + n.emo + "</div></div>" +
+      '<div class="centro"><div class="diploma-emo">' + n.emo + "</div></div>" +
       '<h1 class="centro">Empiezas en ' + d.esc(n.titulo) + "</h1>" +
       '<p class="centro apagado chico">' + d.esc(n.mcer) + " · " + d.esc(n.resumen) + "</p>" +
       '<div class="destrezas">' + detalle + "</div>" +
@@ -805,16 +778,12 @@
     if (S.examen.nivelacion) return terminarNivelacion();
     const r = APP.examen.corregir(S.examen, S.aciertosExamen);
     APP.examen.guardar(S.examen, r);
-    APP.almacen.sumarXp(S.xp);
 
     const nivel = APP.curriculo.nivel(S.examen.nivel);
     const siguiente = APP.examen.nivelDespuesDe(S.examen.nivel);
     const nombreSiguiente = siguiente ? APP.curriculo.nivel(siguiente).titulo : null;
 
-    if (r.aprueba) {
-      APP.audio.efectos.completo();
-      APP.fiesta.confeti({ cantidad: 160 });
-    }
+    if (r.aprueba) APP.audio.efectos.completo();
 
     /* El desglose por destreza importa más que la nota. Un 68% puede ser
      * "vas bien salvo en escuchar" o "vas regular en todo", y son dos
@@ -835,7 +804,7 @@
 
     raiz.innerHTML =
       '<div class="leccion-caja"><div class="leccion-cuerpo" style="display:flex;flex-direction:column;justify-content:center">' +
-      '<div class="centro confeti">' + (r.aprueba ? '<div class="diploma-emo">🎓</div>' : APP.mascota.svg("pensando", 120)) + "</div>" +
+      '<div class="centro"><div class="diploma-emo">' + (r.aprueba ? "🎓" : "📘") + "</div></div>" +
       '<h1 class="centro">' + (r.aprueba ? "¡Aprobaste " + d.esc(nivel.titulo) + "!" : "Todavía no") + "</h1>" +
       '<div class="nota-grande ' + (r.aprueba ? "buena" : "") + '">' + r.porcentaje + "%</div>" +
       '<p class="centro apagado chico">' + r.bien + " de " + r.de + " · se aprueba con " + r.paraAprobar + "%</p>" +
@@ -856,60 +825,39 @@
   }
 
   function terminar() {
-    detenerReloj();
     if (S.examen) return terminarExamen();
-    if (S.reloj) return terminarContrarreloj();
     const precision = S.total ? S.aciertos / (S.aciertos + S.fallos || 1) : 0;
     const segundos = Math.round((Date.now() - S.inicio) / 1000);
-    let extra = 0;
-    if (S.fallos === 0) extra = 20;
-    else if (precision >= 0.8) extra = 10;
-    const xpTotal = S.xp + extra;
 
-    APP.almacen.sumarXp(xpTotal);
-    if (S.fallos === 0) APP.almacen.contar("perfectas");
+    // Lo que se anota es el tiempo, no los puntos. Se puede juntar mucho XP
+    // contestando rápido cosas que ya sabías; el tiempo no se puede inflar.
+    APP.almacen.sumarMinutos(Math.max(1, Math.round(segundos / 60)));
     if (S.modo === "repaso") APP.almacen.contar("repasos");
 
-    // Desafío del día: se le cuenta lo que corresponda a esta sesión.
-    if (S.modo === "camino") APP.desafio.anotar("lecciones", 1);
-    if (S.fallos === 0) APP.desafio.anotar("perfecta", 1);
-    if (S.modo === "repaso") APP.desafio.anotar("repaso", S.aciertos);
-    if (S.modo === "errores") APP.desafio.anotar("errores", S.aciertos);
     let leccionInfo = null;
     if (S.leccionId) leccionInfo = APP.almacen.terminarLeccion(S.leccionId, precision);
-    if (S.modo === "repaso" && S.fallos === 0) APP.almacen.llenarVidas();
 
-    const nuevos = APP.logros.revisar();
     APP.audio.efectos.completo();
-    APP.fiesta.confeti({ cantidad: S.fallos === 0 ? 130 : 70 });
     // Se sube en cuanto termina, sin esperar respuesta: si falla, la próxima
     // sincronización lo arregla, y mientras tanto no se le hace esperar.
     APP.cuenta.sincronizarSiCorresponde(1);
 
     raiz.innerHTML =
       '<div class="leccion-caja"><div class="leccion-cuerpo" style="display:flex;flex-direction:column;justify-content:center">' +
-      '<div class="centro confeti">' +
-      APP.mascota.svg(precision >= 0.8 ? "fiesta" : "feliz", 130) + "</div>" +
-      '<h1 class="centro">' + (S.fallos === 0 ? "¡Lección perfecta!" : precision >= 0.8 ? "¡Lección terminada!" : "¡Terminaste!") + "</h1>" +
+      '<h1 class="centro">' + d.esc(S.titulo) + "</h1>" +
       '<p class="centro apagado">' +
       (S.fallos === 0
-        ? "Sin un solo error. Eso es dominio, no suerte."
+        ? "Sin un solo error."
         : precision >= 0.8
-        ? "Muy bien. Lo que fallaste vuelve en el repaso de mañana."
-        : "Lo importante es que llegaste al final. Repite esta lección mañana.") +
+        ? "Lo que fallaste vuelve en el repaso."
+        : "Repite esta lección otro día: lo que costó hoy es justo lo que hay que volver a ver.") +
       "</p>" +
       '<div class="premio">' +
-      caja("XP ganado", "+" + xpTotal) +
-      caja("Precisión", Math.round(precision * 100) + "%", true) +
+      caja("Aciertos", S.aciertos + " de " + (S.aciertos + S.fallos)) +
       caja("Tiempo", d.minutos(segundos), true) +
-      caja("Mejor racha", S.mejorCombo + " 🔥") +
       "</div>" +
-      (leccionInfo && leccionInfo.coronas
-        ? '<div class="aviso centro">👑 Corona ' + leccionInfo.coronas + " de 5 en esta lección</div>"
-        : "") +
-      (nuevos.length
-        ? '<div class="aviso ojo"><b>¡Logro nuevo!</b> ' +
-          nuevos.map(function (l) { return l.emo + " " + d.esc(l.nombre); }).join(" · ") + "</div>"
+      (leccionInfo && leccionInfo.veces > 1
+        ? '<div class="chico apagado centro">Vez ' + leccionInfo.veces + " de esta lección.</div>"
         : "") +
       (S.falladosIds.length
         ? '<div class="chico apagado centro">Se anotaron ' + S.falladosIds.length +
@@ -920,94 +868,11 @@
       "</div>";
   }
 
-  function terminarContrarreloj() {
-    const xp = S.xp;
-    APP.almacen.sumarXp(xp);
-    const marca = S.aciertos;
-    APP.desafio.anotar("contrarreloj", marca);
-    const anterior = APP.almacen.mejorMarca("contrarreloj");
-    const esRecord = APP.almacen.record("contrarreloj", marca);
-    const nuevos = APP.logros.revisar();
-
-    if (esRecord) {
-      APP.audio.efectos.record();
-      APP.fiesta.confeti({ cantidad: 130 });
-    } else {
-      APP.audio.efectos.completo();
-      if (marca >= 10) APP.fiesta.confeti({ cantidad: 60 });
-    }
-
-    raiz.innerHTML =
-      '<div class="leccion-caja"><div class="leccion-cuerpo" style="display:flex;flex-direction:column;justify-content:center">' +
-      '<div class="centro confeti">' + APP.mascota.svg(esRecord ? "fiesta" : "feliz", 120) + "</div>" +
-      '<h1 class="centro">' + (esRecord ? "¡Récord nuevo!" : "Se acabó el tiempo") + "</h1>" +
-      '<div class="centro" style="font-size:64px;font-weight:800;color:var(--verde);line-height:1">' +
-      marca + "</div>" +
-      '<p class="centro apagado">respuestas correctas en un minuto</p>' +
-      '<div class="premio">' +
-      caja("XP ganado", "+" + xp) +
-      caja("Mejor racha", S.mejorCombo + " 🔥", true) +
-      caja("Tu récord", esRecord ? marca + " 🥇" : anterior, true) +
-      caja("Fallos", S.fallos) +
-      "</div>" +
-      (esRecord && anterior
-        ? '<div class="aviso centro">Le ganaste a tu marca anterior de ' + anterior + ".</div>"
-        : "") +
-      (nuevos.length
-        ? '<div class="aviso ojo"><b>¡Logro nuevo!</b> ' +
-          nuevos.map(function (l) { return l.emo + " " + d.esc(l.nombre); }).join(" · ") + "</div>"
-        : "") +
-      "</div>" +
-      '<div class="pie"><button class="btn" data-accion="otra-vez">Otra vez</button>' +
-      '<div style="height:8px"></div>' +
-      '<button class="btn hueco" data-accion="cerrar">Volver</button></div>' +
-      "</div>";
-  }
-
   function caja(titulo, valor, azul) {
     return (
       '<div class="caja' + (azul ? " azul" : "") + '"><div class="tit">' + d.esc(titulo) +
       '</div><div class="val">' + d.esc(valor) + "</div></div>"
     );
-  }
-
-  function sinVidas() {
-    /* Quedarse sin vidas nunca deja a la persona afuera: puede recuperarlas
-     * practicando (que es exactamente lo que le conviene hacer), esperar, o
-     * apagar las vidas para siempre si el sistema no le acomoda. */
-    const velo = document.createElement("div");
-    velo.className = "velo";
-    velo.innerHTML =
-      '<div class="hoja">' +
-      '<div class="centro">' + APP.mascota.svg("triste", 96) + "</div>" +
-      '<h2 class="centro">Te quedaste sin vidas</h2>' +
-      '<p class="centro apagado chico">Recuperas una cada 10 minutos. La siguiente llega en ' +
-      d.minutos(APP.almacen.segundosParaVida()) + ".</p>" +
-      '<button class="btn" data-accion="recuperar">Recuperar practicando</button>' +
-      '<div style="height:8px"></div>' +
-      '<button class="btn hueco" data-accion="sin-vidas-off">Prefiero practicar sin vidas</button>' +
-      '<div style="height:8px"></div>' +
-      '<button class="btn hueco" data-accion="salir-velo">Salir</button>' +
-      "</div>";
-    document.body.appendChild(velo);
-    velo.addEventListener("click", function (ev) {
-      const b = ev.target.closest("[data-accion]");
-      if (!b) return;
-      const a = b.getAttribute("data-accion");
-      velo.remove();
-      if (a === "recuperar") {
-        cerrar();
-        APP.pantallas.repasoDeRescate();
-      } else if (a === "sin-vidas-off") {
-        APP.almacen.estado().ajustes.corazones = false;
-        APP.almacen.llenarVidas();
-        S.corazones = false;
-        pintar();
-      } else {
-        cerrar();
-        APP.pantallas.pintar();
-      }
-    });
   }
 
   /* ---------------- Interacción ---------------- */
@@ -1032,6 +897,7 @@
         fin();
         return;
       }
+      if (a === "no-se") return noLaSe();
       if (a === "palabra") {
         APP.pantallas.palabra(b.getAttribute("data-palabra"));
         return;
@@ -1048,10 +914,6 @@
 
       if (a === "opcion") {
         S.respuesta = parseInt(b.getAttribute("data-i"), 10);
-        if (S.reloj) {
-          S.botonTocado = b;
-          return comprobar();
-        }
         APP.audio.efectos.toque();
         d.$$(".opcion", raiz).forEach(function (o) { o.classList.remove("elegida"); });
         b.classList.add("elegida");
@@ -1087,7 +949,6 @@
         if (S.examen) {
           S.aciertosExamen[S.i] = false;
           S.fallos += 1;
-          S.combo = 0;
           S.respuesta = null;
           S.i += 1;
           if (S.i >= S.ejercicios.length) return terminar();
@@ -1160,7 +1021,6 @@
       pintar();
       if (Object.keys(est.unidas).length >= ej.izquierda.length) {
         S.aciertos += 1;
-        S.xp += XP_BASE;
         setTimeout(function () {
           S.respuesta = null;
           S.i += 1;
@@ -1202,7 +1062,6 @@
         if (!S) return;
         if (texto) {
           APP.almacen.contar("habladas");
-          APP.desafio.anotar("hablar", 1);
         }
         S.respuesta = { grabando: false, texto: texto || (S.respuesta && S.respuesta.texto) || "" };
         pintar();

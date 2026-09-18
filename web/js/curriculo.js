@@ -55,14 +55,23 @@
       color: "#6366f1",
       icon: "🧱",
       lecciones: [
-        { id: "u0l1", titulo: "Los pronombres", clase: ["pronombres-sujeto"], skills: ["saludos"], tipos: ["elige-en", "pares"], n: 8 },
+        /* Practica pronombres, no saludos. Antes esta lección explicaba los
+         * pronombres y a continuación preguntaba "Fue un gusto conocerte":
+         * la clase y el ejercicio no tenían nada que ver, y eso deja la
+         * sensación de que la explicación no servía para nada. */
+        { id: "u0l1", titulo: "Los pronombres", clase: ["pronombres-sujeto"], reglas: ["pronombres"], n: 12 },
         { id: "u0l2", titulo: "El verbo to be", clase: ["to-be"], reglas: ["am-is-are"], n: 12 },
         { id: "u0l3", titulo: "A, an y the", clase: ["articulos"], reglas: ["a-an"], n: 12 },
         { id: "u0l4", titulo: "Uno y muchos", clase: ["plurales"], reglas: ["plural-s"], n: 12 },
         { id: "u0l5", titulo: "Los adjetivos", clase: ["adjetivos"], reglas: ["adjetivo-orden"], n: 12 },
-        { id: "u0l6", titulo: "La -s de he y she", clase: ["orden"], reglas: ["tercera-s"], n: 12 },
+        /* Sin 'clase': la regla tercera-s ya trae su propia explicación, y
+         * anteponerle el tema "el orden de las palabras" enseñaba una cosa
+         * para practicar otra. Cuando una lección pide una regla y no declara
+         * clase, la ficha de la regla hace de clase. */
+        { id: "u0l6", titulo: "La -s de he y she", reglas: ["tercera-s"], n: 12 },
         { id: "u0l7", titulo: "Preguntar y negar", clase: ["preguntas", "negacion"], reglas: ["do-does", "to-be-negativo"], n: 14 },
         { id: "u0l8", titulo: "Hay: there is", clase: ["there-is"], reglas: ["there-is-are", "have-has"], n: 12 },
+        { id: "u0l9", titulo: "Todo junto", skills: ["saludos"], tipos: ["pares", "elige-en", "elige-es"], n: 12 },
       ],
     },
     {
