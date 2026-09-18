@@ -1,0 +1,1854 @@
+/* Estilos de la aplicación.
+ *
+ * Pensada primero para el teléfono, con la mano derecha y en vertical: lo que
+ * hay que tocar vive en la mitad de abajo de la pantalla y mide al menos 48 px.
+ * En pantallas grandes el contenido se limita a 520 px de ancho y se centra,
+ * en vez de estirarse.
+ *
+ * Sin tipografías ni iconos descargados: todo es del sistema o emoji. Una fuente
+ * bonita cuesta media pantalla de espera la primera vez y no existe sin
+ * internet; la del sistema (Roboto en Android, San Francisco en iPhone) ya es
+ * buena y aparece de inmediato.
+ */
+
+:root {
+  /* Paleta de cielo nocturno: el fondo es papel de día y cielo de noche, y el
+   * acento es la estrella. No hay verde. El verde manzana con el azul cielo de
+   * antes eran literalmente los de Duolingo, y con esos dos colores cualquier
+   * pantalla se parece a Duolingo aunque no tenga nada que ver.
+   *
+   * Los grises llevan una pizca de índigo: un gris puro al lado de un azul se
+   * ve sucio, y uno con la misma familia se ve elegido. */
+  --tinta: #1C1E2E;
+  --tinta-2: #5A5D75;
+  --fondo: #FBF9F5;
+  --fondo-2: #F2EEE6;
+  --papel: #FFFFFF;
+  --borde: #E2DED3;
+  --borde-fuerte: #CFC9BA;
+
+  --azul: #4B5BAF;          /* el acento principal: índigo, no celeste */
+  --azul-oscuro: #3B4890;
+  --azul-suave: #E8EAF7;
+  --dorado: #B77400;        /* el de las estrellas, para lo conseguido */
+  --verde: #2F7D4F;         /* correcto. Verde bosque, no verde manzana */
+  --verde-oscuro: #26653F;
+  --verde-suave: #E3F2E9;
+  --rojo: #9A3B12;
+  --rojo-oscuro: #7E300E;
+  --rojo-suave: #FBEDE6;
+  --morado: #6D4AA8;
+
+  /* Esquinas más discretas y botones planos. La sombra dura de 4px por debajo
+   * —el botón que parece una tecla de goma— es la firma visual de Duolingo, y
+   * era lo primero que delataba de dónde venía esto. */
+  --radio: 10px;
+  --sombra-boton: 0 0 0;
+  --seguro-abajo: env(safe-area-inset-bottom, 0px);
+  --seguro-arriba: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --tinta: #EDEBE3;
+    --tinta-2: #9A9DB5;
+    --fondo: #12141F;
+    --fondo-2: #1B1E2C;
+    --papel: #1A1D2B;
+    --borde: #2C3043;
+    --borde-fuerte: #3B4058;
+
+    --azul: #96A3EC;
+    --azul-oscuro: #7E8DDE;
+    --azul-suave: #232842;
+    --dorado: #F0B754;
+    --verde: #7BC493;
+    --verde-oscuro: #63AC7B;
+    --verde-suave: #1B2E22;
+    --rojo: #F0A882;
+    --rojo-oscuro: #D88E68;
+    --rojo-suave: #2E1D14;
+    --morado: #B49BE8;
+  }
+}
+
+:root[data-tema="oscuro"] {
+  --tinta: #EDEBE3;
+  --tinta-2: #9A9DB5;
+  --fondo: #12141F;
+  --fondo-2: #1B1E2C;
+  --papel: #1A1D2B;
+  --borde: #2C3043;
+  --borde-fuerte: #3B4058;
+
+  --azul: #96A3EC;
+  --azul-oscuro: #7E8DDE;
+  --azul-suave: #232842;
+  --dorado: #F0B754;
+  --verde: #7BC493;
+  --verde-oscuro: #63AC7B;
+  --verde-suave: #1B2E22;
+  --rojo: #F0A882;
+  --rojo-oscuro: #D88E68;
+  --rojo-suave: #2E1D14;
+  --morado: #B49BE8;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overscroll-behavior-y: none;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  /* Sin selección accidental: en el teléfono, mantener apretada una ficha
+     abría el menú de copiar en vez de arrastrarla. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea { user-select: text; -webkit-user-select: text; }
+
+#app {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ---------------- Tipografía ---------------- */
+
+h1, h2, h3 { margin: 0 0 8px; font-weight: 800; letter-spacing: -0.01em; }
+h1 { font-size: 26px; }
+h2 { font-size: 20px; }
+h3 { font-size: 17px; }
+p { margin: 0 0 12px; }
+.apagado { color: var(--tinta-2); }
+.chico { font-size: 14px; }
+.mini { font-size: 12px; }
+.centro { text-align: center; }
+.fuerte { font-weight: 800; }
+
+/* ---------------- Botones ----------------
+   El relieve (sombra sólida abajo + hundirse al apretar) no es decoración:
+   en una pantalla táctil es la única confirmación de que el toque se registró,
+   y evita el doble toque por duda. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: var(--radio);
+  background: var(--verde);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--sombra-boton) var(--verde-oscuro);
+  transition: transform 0.06s, box-shadow 0.06s, background 0.15s;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--verde-oscuro);
+}
+
+.btn:disabled {
+  background: var(--borde);
+  color: var(--tinta-2);
+  box-shadow: none;
+  cursor: default;
+}
+
+.btn.azul { background: var(--azul); box-shadow: var(--sombra-boton) var(--azul-oscuro); }
+.btn.azul:active:not(:disabled) { box-shadow: 0 0 0 var(--azul-oscuro); }
+.btn.rojo { background: var(--rojo); box-shadow: var(--sombra-boton) var(--rojo-oscuro); }
+.btn.rojo:active:not(:disabled) { box-shadow: 0 0 0 var(--rojo-oscuro); }
+
+.btn.hueco {
+  background: transparent;
+  color: var(--tinta-2);
+  border: 2px solid var(--borde);
+  box-shadow: none;
+}
+.btn.hueco:active:not(:disabled) { transform: translateY(2px); background: var(--fondo-2); }
+
+.btn.chico { min-height: 40px; padding: 8px 14px; font-size: 14px; width: auto; }
+
+.icono-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--tinta-2);
+  font-size: 22px;
+  cursor: pointer;
+}
+.icono-btn:active { background: var(--fondo-2); }
+
+/* ---------------- Barra superior ---------------- */
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(10px + var(--seguro-arriba)) 16px 10px;
+  position: sticky;
+  top: 0;
+  background: var(--fondo);
+  z-index: 20;
+}
+
+.contador {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  font-size: 15px;
+}
+.contador .n { font-variant-numeric: tabular-nums; }
+.contador.racha { color: #ff9600; }
+.contador.gemas { color: var(--azul); }
+.contador.vidas { color: var(--rojo); }
+.contador.apagada { color: var(--tinta-2); opacity: 0.6; }
+
+/* ---------------- Camino ---------------- */
+
+.contenido {
+  flex: 1;
+  padding: 0 16px calc(96px + var(--seguro-abajo));
+}
+
+.unidad-cabecera {
+  border-radius: var(--radio);
+  padding: 16px 18px;
+  color: #fff;
+  margin: 14px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+}
+.unidad-cabecera .txt { flex: 1; min-width: 0; }
+.unidad-cabecera h2 { margin: 0; font-size: 18px; }
+.unidad-cabecera .sub { font-size: 13px; opacity: 0.9; }
+.unidad-cabecera .emo { font-size: 30px; }
+
+.camino { position: relative; padding: 8px 0 16px; }
+
+.nodo-fila {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+/* El zigzag: cada lección se desplaza a un lado distinto. Es lo que hace que
+   el camino se lea como un camino y no como una lista.
+   El desplazamiento va en la columna interior y no en la fila: la fila ocupa
+   todo el ancho, y moverla a ella empujaba la página hacia el lado y dejaba
+   la pantalla con scroll horizontal. */
+.nodo-caja { position: relative; display: flex; flex-direction: column; align-items: center; }
+.nodo-fila[data-desvio="0"] > .nodo-caja { transform: translateX(0); }
+.nodo-fila[data-desvio="1"] > .nodo-caja { transform: translateX(48px); }
+.nodo-fila[data-desvio="2"] > .nodo-caja { transform: translateX(68px); }
+.nodo-fila[data-desvio="3"] > .nodo-caja { transform: translateX(48px); }
+.nodo-fila[data-desvio="4"] > .nodo-caja { transform: translateX(0); }
+.nodo-fila[data-desvio="5"] > .nodo-caja { transform: translateX(-48px); }
+.nodo-fila[data-desvio="6"] > .nodo-caja { transform: translateX(-68px); }
+.nodo-fila[data-desvio="7"] > .nodo-caja { transform: translateX(-48px); }
+
+.nodo {
+  position: relative;
+  width: 74px;
+  height: 68px;
+  border: none;
+  border-radius: 50%;
+  background: var(--verde);
+  box-shadow: 0 7px 0 var(--verde-oscuro);
+  color: #fff;
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.nodo:active:not(:disabled) { transform: translateY(6px); box-shadow: 0 1px 0 var(--verde-oscuro); }
+.nodo.cerrado {
+  background: var(--borde);
+  box-shadow: 0 7px 0 var(--borde-fuerte);
+  color: var(--tinta-2);
+  cursor: default;
+}
+.nodo.terminado { background: var(--dorado); box-shadow: 0 7px 0 #d9a800; }
+
+.nodo .coronas {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fondo);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tinta-2);
+  border: 2px solid var(--borde);
+  white-space: nowrap;
+}
+
+.nodo-etiqueta {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-2);
+  margin-top: 12px;
+  max-width: 110px;
+}
+
+.burbuja {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--fondo);
+  border: 2px solid var(--borde);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--verde);
+  white-space: nowrap;
+  animation: flotar 1.6s ease-in-out infinite;
+  z-index: 5;
+}
+@keyframes flotar {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
+}
+
+/* ---------------- Pelusa ----------------
+   La mascota y su globo de diálogo. El globo lleva una punta hacia ella,
+   dibujada con un cuadrado girado: sin la punta se lee como un aviso del
+   sistema y no como algo que ella dice. */
+
+.pelusa-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+.pelusa { flex: none; }
+
+.pelusa-dice {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: var(--fondo-2);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.pelusa-dice::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--fondo-2);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+/* En el pie de corrección va chica y al lado del texto. */
+.pie-titulo .pelusa { margin: -6px 0; }
+
+/* Un rebote corto cuando aparece celebrando: quieta se ve pegada. */
+.pelusa.brinca { animation: pelusa-brinca 0.6s ease-out; }
+@keyframes pelusa-brinca {
+  0% { transform: translateY(14px) scale(0.85); opacity: 0; }
+  55% { transform: translateY(-6px) scale(1.06); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ---------------- Gramática ----------------
+   La caja de "el error típico" es lo que más se recuerda de cada tema, así que
+   se le da su propio bloque: la frase mala tachada y en rojo, la buena en verde
+   y además pronunciable. Ver las dos juntas es lo que hace el contraste. */
+
+.explica p { margin: 0 0 10px; font-size: 15px; line-height: 1.55; }
+.explica p:last-child { margin-bottom: 0; }
+.explica b { font-weight: 800; }
+
+.gram-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 12px 0;
+}
+.gram-tabla th {
+  text-align: left;
+  padding: 7px 9px;
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  border-bottom: 2px solid var(--borde);
+}
+.gram-tabla td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: top;
+}
+.gram-tabla td.clave { font-weight: 800; white-space: nowrap; }
+
+.trampa {
+  margin-top: 16px;
+  border: 2px solid var(--dorado);
+  border-radius: var(--radio);
+  padding: 14px;
+  background: rgba(255, 200, 0, .08);
+}
+.trampa .tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #8a6d00;
+  margin-bottom: 10px;
+}
+.trampa .linea-mal,
+.trampa .linea-bien {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  border: none;
+  font-family: inherit;
+}
+.trampa .linea-mal {
+  background: var(--rojo-suave);
+  color: var(--rojo-oscuro);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 75, 75, .5);
+}
+.trampa .linea-bien {
+  background: var(--verde-suave);
+  color: var(--verde-oscuro);
+  cursor: pointer;
+}
+.trampa .marca { font-weight: 800; flex: none; text-decoration: none; display: inline-block; }
+.trampa .porque { font-size: 14px; color: var(--tinta); margin-top: 8px; }
+
+/* ---------------- Verbos ----------------
+   La ficha de un verbo es sobre todo una tabla, y una tabla en un teléfono se
+   lee mal. Por eso cada forma es un botón que además la pronuncia: se consulta
+   con el dedo y con el oído, no leyendo columnas. */
+
+.formas { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.forma {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 12px;
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.forma:active { background: var(--fondo-2); }
+.forma .et { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--tinta-2); }
+.forma .val { font-size: 17px; font-weight: 800; }
+.forma .ay { font-size: 11px; color: var(--tinta-2); }
+
+.conjuga { display: flex; flex-direction: column; }
+.linea {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 0;
+  border: none;
+  border-bottom: 1px solid var(--borde);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.linea:last-child { border-bottom: none; }
+.linea:active { background: var(--fondo); }
+.linea .quien { flex: 0 0 68px; font-size: 12px; color: var(--tinta-2); }
+.linea .dice { font-weight: 700; }
+
+/* ---------------- Pronunciación ----------------
+   Los símbolos fonéticos son lo que hay que reconocer, así que van grandes y
+   primero; la palabra de ejemplo debajo, en chico, como pista. */
+
+.sonidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.sonido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 12px 6px 10px;
+  border: 2px solid var(--borde);
+  border-radius: 14px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  cursor: pointer;
+}
+.sonido:active { background: var(--fondo-2); }
+.sonido .ipa { font-size: 22px; font-weight: 800; font-family: ui-monospace, "Segoe UI", sans-serif; }
+.sonido .ej { font-size: 12px; color: var(--tinta-2); }
+.sonido .barra-prog { width: 100%; }
+
+.ipa-grande {
+  font-size: 68px;
+  font-weight: 800;
+  text-align: center;
+  margin: 10px 0 14px;
+  font-family: ui-monospace, "Segoe UI", sans-serif;
+  color: var(--morado);
+}
+
+.par-mini {
+  padding: 7px 11px;
+  border: 2px solid var(--borde);
+  border-radius: 10px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+.par-mini:active { background: var(--fondo-2); }
+.par-mini .ipa { font-weight: 400; color: var(--tinta-2); font-size: 13px; }
+
+/* ---------------- Contrarreloj ----------------
+   La barra cambia de color sola al bajar: el naranjo y el rojo avisan antes de
+   que alcance a leerse el número. */
+
+.reloj {
+  flex: 1;
+  height: 16px;
+  background: var(--borde);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.reloj > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rojo) 0%, var(--dorado) 35%, var(--verde) 70%);
+  background-size: 320px 100%;
+  background-position: right center;
+  transition: width 0.25s linear;
+}
+
+/* ---------------- Tarjetas ---------------- */
+
+.tarjeta {
+  background: var(--fondo);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.tarjeta.plana { background: var(--fondo-2); border-color: transparent; }
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fila .crece { flex: 1; min-width: 0; }
+.entre { justify-content: space-between; }
+
+.pastilla {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--fondo-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+/* ---------------- Barras de progreso ---------------- */
+
+.barra-prog {
+  height: 16px;
+  background: var(--borde);
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 1;
+}
+.barra-prog > i {
+  display: block;
+  height: 100%;
+  background: var(--verde);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.barra-prog.fina { height: 8px; }
+.barra-prog.azul > i { background: var(--azul); }
+
+/* ---------------- Pantalla de ejercicio ---------------- */
+
+.leccion {
+  position: fixed;
+  inset: 0;
+  background: var(--fondo);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+}
+.leccion-caja {
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.leccion-cuerpo {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+.enunciado { font-size: 21px; font-weight: 800; margin: 6px 0 18px; }
+
+.prompt-grande {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+.emoji-grande { font-size: 64px; line-height: 1; margin-bottom: 8px; }
+.muestra-color {
+  width: 92px; height: 92px; border-radius: 20px;
+  border: 2px solid var(--borde); margin-bottom: 10px;
+}
+
+.opciones { display: grid; gap: 10px; margin-top: 4px; }
+.opciones.dos { grid-template-columns: 1fr 1fr; }
+
+.opcion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 2px solid var(--borde);
+  border-bottom-width: 4px;
+  border-radius: 14px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.opcion:active { background: var(--fondo-2); }
+.opcion .emo { font-size: 26px; }
+.opcion .ipa { color: var(--tinta-2); font-weight: 700; margin-left: auto; }
+.opcion.elegida { border-color: var(--azul); background: var(--azul-suave); color: var(--azul-oscuro); }
+.opcion.buena { border-color: var(--verde); background: var(--verde-suave); color: var(--verde-oscuro); }
+.opcion.mala { border-color: var(--rojo); background: var(--rojo-suave); color: var(--rojo-oscuro); }
+.opcion.tachada { opacity: 0.45; }
+
+/* ---------------- Armar la frase con fichas ---------------- */
+
+.renglon {
+  min-height: 108px;
+  border-top: 2px solid var(--borde);
+  border-bottom: 2px solid var(--borde);
+  padding: 10px 4px;
+  margin: 6px 0 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+}
+.banco { display: flex; flex-wrap: wrap; gap: 8px; min-height: 56px; }
+
+.ficha {
+  padding: 9px 14px;
+  border: 2px solid var(--borde);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+.ficha:active { transform: translateY(2px); border-bottom-width: 2px; }
+.ficha.fantasma { visibility: hidden; }
+
+/* ---------------- Unir pares ---------------- */
+
+.pares { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.par {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 2px solid var(--borde);
+  border-bottom-width: 4px;
+  border-radius: 14px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+}
+.par.elegida { border-color: var(--azul); background: var(--azul-suave); }
+.par.unida { border-color: var(--verde); background: var(--verde-suave); color: var(--verde-oscuro); }
+.par.resuelta { opacity: 0.35; pointer-events: none; }
+.par.error { animation: temblar 0.3s; border-color: var(--rojo); background: var(--rojo-suave); }
+
+@keyframes temblar {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+/* ---------------- Escribir ---------------- */
+
+.campo {
+  width: 100%;
+  min-height: 110px;
+  padding: 14px;
+  border: 2px solid var(--borde);
+  border-radius: 14px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 18px;
+  resize: none;
+}
+.campo:focus { outline: none; border-color: var(--azul); }
+
+/* ---------------- Hablar ---------------- */
+
+.micro {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: none;
+  background: var(--azul);
+  box-shadow: 0 6px 0 var(--azul-oscuro);
+  color: #fff;
+  font-size: 40px;
+  margin: 18px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.micro.grabando { background: var(--rojo); box-shadow: 0 6px 0 var(--rojo-oscuro); animation: latir 1.1s infinite; }
+@keyframes latir {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.diff { font-size: 19px; font-weight: 700; line-height: 1.7; }
+.diff .ok { color: var(--verde-oscuro); }
+.diff .falta { color: var(--rojo); text-decoration: underline wavy var(--rojo); }
+.diff .cambio { color: #b45309; }
+.diff .sobra { color: var(--tinta-2); text-decoration: line-through; }
+
+/* ---------------- Pie de corrección ---------------- */
+
+.pie {
+  padding: 14px 16px calc(16px + var(--seguro-abajo));
+  border-top: 2px solid var(--borde);
+  background: var(--fondo);
+}
+.pie.bien { background: var(--verde-suave); border-color: transparent; }
+.pie.mal { background: var(--rojo-suave); border-color: transparent; }
+.pie-titulo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; margin-bottom: 4px; }
+.pie.bien .pie-titulo { color: var(--verde-oscuro); }
+.pie.mal .pie-titulo { color: var(--rojo-oscuro); }
+.pie .detalle { font-size: 15px; margin-bottom: 12px; }
+.pie.bien .detalle { color: var(--verde-oscuro); }
+.pie.mal .detalle { color: var(--rojo-oscuro); }
+
+.entrada-animada { animation: subir 0.22s ease-out; }
+@keyframes subir {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* ---------------- Navegación inferior ---------------- */
+
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--fondo);
+  border-top: 2px solid var(--borde);
+  padding-bottom: var(--seguro-abajo);
+}
+.nav-caja { max-width: 520px; margin: 0 auto; display: flex; }
+.nav button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 4px 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tinta-2);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.nav button .emo { font-size: 23px; }
+.nav button.activa { color: var(--verde); }
+
+/* ---------------- Resumen final ---------------- */
+
+.premio { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }
+.premio .caja {
+  border: 2px solid var(--dorado);
+  border-radius: var(--radio);
+  overflow: hidden;
+  text-align: center;
+}
+.premio .caja .tit {
+  background: var(--dorado);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 3px;
+}
+.premio .caja .val { padding: 10px; font-size: 22px; font-weight: 800; color: var(--dorado); }
+.premio .caja.azul { border-color: var(--azul); }
+.premio .caja.azul .tit { background: var(--azul); }
+.premio .caja.azul .val { color: var(--azul); }
+
+/* Envuelve lo que celebra —antes un emoji, ahora Pelusa— y le da el rebote
+   de entrada. El font-size sólo importa si adentro va texto. */
+.confeti { font-size: 60px; text-align: center; animation: brincar 0.7s ease-out; }
+@keyframes brincar {
+  0% { transform: scale(0.4) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+
+/* ---------------- Gráfico de la semana ---------------- */
+
+.semana { display: flex; align-items: flex-end; gap: 6px; height: 96px; margin: 8px 0 4px; }
+.semana .dia { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 4px; }
+.semana .bar { background: var(--borde); border-radius: 6px 6px 0 0; min-height: 4px; }
+.semana .bar.hay { background: var(--verde); }
+.semana .bar.meta { background: var(--dorado); }
+.semana .et { text-align: center; font-size: 10px; font-weight: 800; color: var(--tinta-2); }
+
+/* ---------------- Logros ---------------- */
+
+.logros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.logro { text-align: center; padding: 12px 6px; border: 2px solid var(--borde); border-radius: 14px; }
+.logro.ganado { border-color: var(--dorado); background: rgba(255, 200, 0, 0.08); }
+.logro .emo { font-size: 30px; filter: grayscale(1); opacity: 0.4; }
+.logro.ganado .emo { filter: none; opacity: 1; }
+.logro .nom { font-size: 11px; font-weight: 800; margin-top: 4px; }
+
+/* ---------------- Modal ---------------- */
+
+.velo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hoja {
+  background: var(--fondo);
+  width: 100%;
+  max-width: 520px;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 16px calc(20px + var(--seguro-abajo));
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: subir 0.2s ease-out;
+}
+
+/* ---------------- Varios ---------------- */
+
+.lista-limpia { list-style: none; margin: 0; padding: 0; }
+.aviso {
+  background: var(--azul-suave);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--azul-oscuro);
+  margin-bottom: 12px;
+}
+.aviso.ojo { background: rgba(255, 200, 0, 0.16); color: #8a6d00; }
+
+.interruptor { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--borde); }
+.interruptor:last-child { border-bottom: none; }
+.palanca { width: 52px; height: 30px; border-radius: 999px; background: var(--borde); border: none; position: relative; cursor: pointer; flex: none; transition: background 0.15s; }
+.palanca[aria-checked="true"] { background: var(--verde); }
+.palanca i { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.palanca[aria-checked="true"] i { transform: translateX(22px); }
+
+.seg { display: flex; gap: 6px; background: var(--fondo-2); padding: 4px; border-radius: 12px; }
+.seg button { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 9px; font: inherit; font-weight: 800; font-size: 13px; color: var(--tinta-2); cursor: pointer; }
+.seg button.activa { background: var(--fondo); color: var(--tinta); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ==========================================================================
+   Niveles, reglas, lectura y exámenes
+   ========================================================================== */
+
+/* --- Cabecera de nivel --- */
+.nivel-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--papel);
+  border: 2px solid var(--c, var(--borde));
+}
+.nivel-cabecera.cerrado { opacity: .62; border-style: dashed; }
+.nivel-emo { font-size: 30px; line-height: 1; flex: 0 0 auto; }
+.nivel-txt { flex: 1 1 auto; min-width: 0; }
+.nivel-txt h2 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nivel-txt .sub { font-size: .84rem; color: var(--apagado); }
+.mcer {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--fondo2);
+  color: var(--apagado);
+}
+.pastilla.verde { background: #58cc02; color: #fff; }
+
+/* --- Tarjeta de examen --- */
+.examen-tarjeta { text-align: center; border: 2px dashed var(--borde); }
+.examen-tarjeta.aprobada { border-style: solid; border-color: #58cc02; }
+.examen-emo { font-size: 34px; }
+.diploma-emo { font-size: 72px; line-height: 1.1; }
+
+.nota-grande {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--apagado);
+}
+.nota-grande.buena { color: #58cc02; }
+
+.destrezas { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+.destreza-fila { display: flex; align-items: center; gap: 9px; font-size: .86rem; }
+.destreza-fila .emo { flex: 0 0 auto; }
+.destreza-fila .nombre { flex: 0 0 5.4em; }
+.destreza-fila .barra-prog { flex: 1 1 auto; }
+.destreza-fila .cifra { flex: 0 0 auto; font-variant-numeric: tabular-nums; color: var(--apagado); }
+
+.puedes { margin: 8px 0 0; padding-left: 1.1em; font-size: .9rem; }
+.puedes li { margin-bottom: 6px; }
+
+/* --- Ejercicios de regla --- */
+.frase-regla {
+  font-size: 1.3rem;
+  line-height: 1.7;
+  text-align: center;
+  margin: 18px 0 8px;
+  word-break: break-word;
+}
+.hueco-regla {
+  display: inline-block;
+  min-width: 3.4em;
+  border-bottom: 3px solid var(--azul, #1cb0f6);
+  margin: 0 3px;
+  font-weight: 700;
+}
+.clave-regla {
+  background: var(--fondo2);
+  border-left: 4px solid var(--azul, #1cb0f6);
+  border-radius: 0 10px 10px 0;
+  padding: 10px 12px;
+  margin: 12px 0;
+  font-weight: 600;
+  font-size: .94rem;
+}
+
+/* --- Lectura --- */
+.lectura { font-size: 1.05rem; line-height: 1.75; margin: 14px 0; }
+.lectura p { margin: 0 0 14px; }
+.glosario {
+  background: var(--fondo2);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 14px;
+}
+.glosa { font-size: .9rem; padding: 4px 0; }
+
+/* Las palabras tocables no se subrayan: el texto tiene que seguir leyéndose
+   como un texto. Sólo al tocarlas se nota que responden. */
+.tocable { cursor: pointer; border-radius: 3px; }
+.tocable:active { background: var(--azul, #1cb0f6); color: #fff; }
+@media (hover: hover) {
+  .tocable:hover { background: var(--fondo2); }
+}
+
+.opcion.izq { text-align: left; }
+
+/* --- Ficha de una palabra --- */
+.palabra-cabecera { display: flex; align-items: center; gap: 12px; }
+.palabra-cabecera h2 { margin: 0; flex: 1 1 auto; word-break: break-word; }
+.definicion { font-size: 1.15rem; margin-top: 6px; }
+.etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.nota-palabra {
+  margin-top: 10px;
+  font-size: .88rem;
+  background: var(--fondo2);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
+/* --- Lista de reglas --- */
+.lista-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.lista-item .emo-grande { font-size: 26px; flex: 0 0 auto; }
+.lista-item .txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.lista-item .txt .fuerte,
+.lista-item .txt .mini { display: block; }
+
+/* --- Conversar con el tutor --- */
+.chat { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
+.burbuja-chat {
+  max-width: 85%;
+  padding: 10px 13px;
+  border-radius: 16px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.burbuja-chat.mia {
+  align-self: flex-end;
+  background: var(--azul, #1cb0f6);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+.burbuja-chat.suya {
+  align-self: flex-start;
+  background: var(--fondo2);
+  border-bottom-left-radius: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.burbuja-chat.suya .texto { flex: 1 1 auto; min-width: 0; }
+.burbuja-chat.pensando { opacity: .6; font-style: italic; }
+
+/* La corrección va fuera de la burbuja y con su propio color: es lo que hay
+   que mirar, no una frase más de la conversación. */
+.correccion {
+  align-self: flex-start;
+  max-width: 92%;
+  background: #fff8e6;
+  border-left: 3px solid #ffc800;
+  border-radius: 0 10px 10px 0;
+  padding: 9px 12px;
+  font-size: .9rem;
+}
+.correccion .mal { color: #c1392b; text-decoration: line-through; }
+.correccion .bien { color: #2e7d32; font-weight: 600; }
+:root[data-theme="dark"] .correccion,
+:root:not([data-theme="light"]) .correccion { background: #2e2716; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .correccion { background: #fff8e6; }
+}
+
+.chat-barra { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.chat-barra .campo { flex: 1 1 auto; min-width: 0; min-height: auto; }
+.micro.chico {
+  width: 46px; height: 46px; font-size: 20px;
+  flex: 0 0 auto; border-radius: 50%;
+}
+.btn.redondo {
+  flex: 0 0 auto;
+  width: 46px; height: 46px;
+  min-height: auto;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* El pie cuando se pidió ver la respuesta. Ni verde ni rojo: no se acertó,
+   pero tampoco se falló — se reconoció no saberlo, que es lo que hay que
+   hacer. Pintarlo de rojo castigaría al único botón honesto de la pantalla. */
+.pie.neutro {
+  background: var(--fondo2);
+  border-top: 3px solid var(--azul, #1cb0f6);
+}
+.pie.neutro .pie-titulo span { color: var(--azul, #1cb0f6); }
+
+/* ==========================================================================
+   El cuaderno: índice del curso y registro de estudio
+   ========================================================================== */
+
+/* Tipografía con una escala de verdad. No hay fuente descargada —la aplicación
+   tiene que abrir sin internet— así que la diferencia la hacen el tamaño, el
+   peso, el interletrado y el color, no la familia. */
+h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -.022em;
+  line-height: 1.15;
+  margin: 4px 0 18px;
+}
+h2 { font-size: 1.12rem; font-weight: 700; letter-spacing: -.012em; }
+h3 { font-size: .98rem; font-weight: 700; letter-spacing: -.008em; }
+
+/* --- Barra de arriba --- */
+.barra.sobria { gap: 10px; }
+.barra-nivel {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.contador.paso {
+  font-size: .8rem;
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Navegación de abajo, sólo texto --- */
+.nav-caja button {
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  padding: 10px 4px;
+}
+.nav-caja button.activa { color: var(--azul); }
+
+/* --- "Por dónde ibas" --- */
+.seguir {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--azul);
+  border-radius: 0 var(--radio) var(--radio) 0;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+.seguir .titulo { font-size: 1.15rem; font-weight: 700; margin: 2px 0; }
+.seguir .btn { margin-top: 12px; }
+
+/* --- Índice: niveles --- */
+.nivel { margin-bottom: 30px; }
+.nivel-cab { padding-bottom: 12px; border-bottom: 1px solid var(--borde); margin-bottom: 4px; }
+.nivel-cab.cerrado { opacity: .55; }
+.nivel-cab h2 { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.nivel-cab .sub { margin: 4px 0 0; font-size: .86rem; color: var(--tinta-2); }
+.nivel-cab p { margin: 6px 0 0; }
+.mcer {
+  font-size: .66rem; font-weight: 700; letter-spacing: .07em;
+  color: var(--tinta-2); text-transform: uppercase;
+}
+.sello {
+  font-size: .64rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--verde); border: 1px solid currentColor; border-radius: 4px; padding: 1px 5px;
+}
+.linea-prog {
+  height: 3px; background: var(--borde); border-radius: 2px; overflow: hidden; margin: 8px 0 0;
+}
+.linea-prog i { display: block; height: 100%; background: var(--azul); }
+
+/* --- Índice: unidades desplegables --- */
+.unidad { border-bottom: 1px solid var(--borde); }
+.unidad-cab {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: none; border: 0; padding: 13px 2px; cursor: pointer;
+  text-align: left; color: inherit; font: inherit;
+}
+.flecha {
+  flex: 0 0 auto; font-size: 20px; line-height: 1; color: var(--tinta-2);
+  transition: transform .15s ease; transform-origin: 50% 50%;
+}
+.flecha.abierta { transform: rotate(90deg); }
+.unidad-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.unidad-txt .titulo { font-weight: 650; }
+.cuenta {
+  flex: 0 0 auto; font-size: .78rem; color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+.cuenta.completa { color: var(--verde); font-weight: 700; }
+
+.lecciones { list-style: none; margin: 0 0 12px; padding: 0 0 0 32px; }
+.leccion-fila {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  background: none; border: 0; padding: 9px 2px; cursor: pointer;
+  text-align: left; color: inherit; font: inherit; font-size: .94rem;
+}
+.leccion-fila .marca {
+  flex: 0 0 1.1em; color: var(--verde); font-weight: 700;
+}
+.leccion-fila .txt { flex: 1 1 auto; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.leccion-fila.hecha .txt { color: var(--tinta-2); }
+.etiqueta {
+  font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--tinta-2); background: var(--fondo-2); border-radius: 3px; padding: 1px 5px;
+}
+
+/* --- Examen, como una fila más del índice y no como un premio --- */
+.examen-fila {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 2px; margin-top: 2px;
+  border-top: 2px solid var(--borde);
+}
+.examen-fila .txt { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.examen-fila .titulo { font-weight: 650; }
+.examen-fila.aprobada .titulo { color: var(--verde); }
+
+/* --- Registro --- */
+.cifras {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--borde); border: 1px solid var(--borde);
+  border-radius: var(--radio); overflow: hidden; margin-bottom: 26px;
+}
+.cifra { background: var(--papel); padding: 16px 14px; display: flex; flex-direction: column; gap: 2px; }
+.cifra .n { font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.cifra .et { font-size: .76rem; color: var(--tinta-2); }
+
+.bloque { margin-bottom: 28px; }
+.bloque h2 {
+  font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tinta-2); margin: 0 0 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--borde);
+}
+.bloque p { margin: 8px 0 0; }
+
+.fila-prog { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: .88rem; }
+.fila-prog .et { flex: 0 0 5.8em; }
+.fila-prog .linea-prog { flex: 1 1 auto; margin: 0; }
+.fila-prog .val { flex: 0 0 auto; color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+
+.olvido {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--borde); font-size: .9rem;
+}
+.olvido .mini { margin-left: auto; white-space: nowrap; }
+
+/* Un enlace de texto, para lo secundario. Un botón más compite con el que sí
+   importa; un enlace se ofrece sin insistir. */
+.enlace {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--azul); font: inherit; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- La corrección, sin mascota --- */
+.pie-titulo .marca { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+.pie.bien .pie-titulo .marca { color: var(--verde); }
+.pie.mal .pie-titulo .marca { color: var(--rojo); }
+.pie.neutro .pie-titulo .marca { color: var(--azul); }
+
+/* El botón principal va en índigo, no en verde.
+   El verde de acción sobre fondo claro es media firma de Duolingo: con ese
+   botón, cualquier pantalla se le parece aunque el resto no tenga nada que
+   ver. Acá el verde queda reservado para una sola cosa —"correcto"— y así
+   además significa algo: cuando ves verde, acertaste. */
+.btn {
+  background: var(--azul);
+  box-shadow: none;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: .02em;
+  text-transform: none;
+  min-height: 48px;
+}
+.btn:active:not(:disabled) { transform: none; background: var(--azul-oscuro); }
+.btn.azul { background: var(--azul); }
+.btn.rojo { background: var(--rojo); }
+.btn.hueco {
+  background: transparent;
+  color: var(--azul);
+  border: 1px solid var(--borde-fuerte);
+}
+.btn.chico { min-height: 38px; padding: 9px 16px; width: auto; font-size: .86rem; }
+
+/* La segunda tarjeta de la portada no compite con la primera: ofrecer dos
+   cosas igual de fuerte es no ofrecer ninguna. */
+.seguir + .seguir { border-left-color: var(--borde-fuerte); }
+.seguir + .seguir .btn { background: transparent; color: var(--azul); border: 1px solid var(--borde-fuerte); }
+
+/* ==========================================================================
+   Pantalla ancha: el índice a la izquierda, fijo
+   ==========================================================================
+   En un computador la columna de 520 px dejaba media pantalla vacía a cada
+   lado y obligaba a volver atrás para ver qué venía después. Con el temario
+   siempre a la vista se estudia sabiendo dónde se está.
+
+   En el teléfono esto no existe: ahí una columna lateral se comería el ancho
+   que necesita lo que se está leyendo. */
+
+.lateral { display: none; }
+
+@media (min-width: 900px) {
+  #app {
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: 290px minmax(0, 1fr);
+    align-items: start;
+    gap: 0;
+  }
+
+  .lateral {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-right: 1px solid var(--borde);
+    padding: 22px 18px 30px;
+  }
+
+  .principal { min-width: 0; }
+  .contenido { padding: 0 32px 60px; }
+  .nav { display: none; }
+
+  /* El índice de la pestaña Curso sobra cuando ya está en la columna: repetir
+     el mismo árbol dos veces en la misma pantalla no informa, distrae. */
+  .principal .nivel .unidad,
+  .principal .nivel .examen-fila { display: none; }
+}
+
+@media (min-width: 1240px) {
+  #app { grid-template-columns: 320px minmax(0, 1fr); }
+}
+
+.marca {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  margin-bottom: 18px;
+}
+
+.lateral-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 24px;
+}
+.lateral-secciones button {
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: .92rem;
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+.lateral-secciones button:hover { background: var(--fondo-2); color: var(--tinta); }
+.lateral-secciones button.activa {
+  background: var(--azul-suave);
+  color: var(--azul);
+  font-weight: 650;
+}
+
+/* --- El árbol --- */
+.arbol-nivel { margin-bottom: 18px; }
+.arbol-nivel.cerrado { opacity: .45; }
+.arbol-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  padding: 0 10px 6px;
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: 4px;
+}
+
+.arbol-unidad {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: .88rem;
+  color: inherit;
+  cursor: pointer;
+}
+.arbol-unidad:hover { background: var(--fondo-2); }
+.arbol-unidad.abierta { font-weight: 650; }
+.arbol-unidad .t { flex: 1 1 auto; min-width: 0; }
+.arbol-unidad .flecha { font-size: 15px; }
+
+.arbol-lecciones {
+  display: flex;
+  flex-direction: column;
+  /* La línea marca la jerarquía mejor que la sangría sola: se ve de un vistazo
+     dónde empieza y dónde acaba lo que cuelga de la unidad. */
+  border-left: 1px solid var(--borde);
+  margin: 2px 0 6px 19px;
+  padding-left: 4px;
+}
+.arbol-leccion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: .84rem;
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+.arbol-leccion:hover { background: var(--fondo-2); color: var(--tinta); }
+.arbol-leccion .punto { flex: 0 0 .7em; color: var(--verde); font-weight: 700; }
+.arbol-leccion.hecha { color: var(--tinta-2); }
+
+/* ==========================================================================
+   El diccionario, a la derecha
+   ==========================================================================
+   Aparece sólo cuando hay sitio de sobra. En un teléfono robaría el ancho que
+   necesita lo que se está leyendo, y ahí ya está resuelto de otra forma: se
+   toca la palabra. */
+
+.buscador { display: none; }
+
+@media (min-width: 1240px) {
+  #app { max-width: 1500px; grid-template-columns: 300px minmax(0, 1fr) 300px; }
+  .buscador {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-left: 1px solid var(--borde);
+    padding: 22px 18px 30px;
+  }
+}
+
+.buscador .campo { min-height: auto; padding: 10px 12px; font-size: .92rem; }
+
+.dic-ficha {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.dic-cab { display: flex; align-items: center; gap: 10px; }
+.dic-cab b { flex: 1 1 auto; font-size: 1.12rem; word-break: break-word; }
+.dic-es { font-size: 1rem; margin: 4px 0 6px; }
+.dic-ficha .mini + .mini { margin-top: 5px; }
+
+.dic-titulo { margin: 20px 0 6px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+.dic-linea {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--borde);
+  font-size: .9rem;
+}
+.dic-linea .mini { flex: 1 1 auto; min-width: 0; }
+.icono-btn.chico { font-size: 14px; padding: 2px 4px; min-height: auto; }
+
+/* --- La lección en pantalla ancha ---
+   Estaba pensada sólo para teléfono: en un monitor el contenido se pegaba a la
+   izquierda y las opciones se estiraban a lo ancho de toda la pantalla, que es
+   incómodo de leer y se ve roto. */
+@media (min-width: 760px) {
+  .leccion-caja {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .leccion .pie {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .leccion .barra {
+    max-width: 640px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* El botón secundario, centrado bajo el principal. Suelto a la izquierda
+   parecía un resto de otra maqueta. */
+.pie [data-accion="no-se"] { display: block; margin-left: auto; margin-right: auto; }
+
+/* --- Las etapas de una lección --- */
+.leccion-cuerpo.anuncio {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+}
+.leccion-cuerpo.anuncio h1 { margin: 10px 0 0; font-size: 2rem; }
+.leccion-cuerpo.anuncio p { margin: 0; }
+
+.pasos {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.paso-punto {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.paso-punto.hecho { color: var(--verde); border-color: currentColor; }
+.paso-punto.ahora {
+  color: #fff;
+  background: var(--azul);
+  border-color: var(--azul);
+}
+
+.etapa-actual {
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  text-align: center;
+  margin: -2px 0 8px;
+}
+
+/* Repetir una frase hablada: los dos botones juntos, escuchar y volver a
+   decirla. Es lo único que hay que hacer cuando sale mal. */
+.repetir-habla {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.repetir-habla .btn { width: auto; flex: 1 1 auto; }
+
+/* Los botones secundarios del pie, en fila y sin competir con el principal. */
+.pie-secundarios {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.pie-secundarios .btn { width: auto; }
+
+/* La duda, con el ejercicio a la vista para no perder de qué se hablaba. */
+.preg-contexto {
+  background: var(--fondo-2);
+  border-left: 3px solid var(--azul);
+  border-radius: 0 8px 8px 0;
+  padding: 9px 12px;
+  margin: 10px 0 14px;
+  font-size: .92rem;
+}
+.preg-sugeridas { display: flex; flex-direction: column; gap: 7px; margin: 12px 0; }
+.preg-sugeridas .btn { width: 100%; text-align: left; justify-content: flex-start; }
+#preg-chat { max-height: 42vh; overflow-y: auto; }
+
+/* ---------------- El cuerpo de una clase ----------------
+   Lo que hace que una explicación se entienda no es el texto, es el orden:
+   la idea primero, después los pasos numerados, y el porqué al final para
+   quien quiera saber de dónde sale la regla. Cada paso trae sus ejemplos
+   pegados, porque un ejemplo que está veinte líneas más abajo ya no explica
+   nada. */
+
+.clase-idea {
+  background: var(--fondo2);
+  border-left: 4px solid var(--azul, #1cb0f6);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 14px;
+  margin: 14px 0 4px;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.clase-pasos {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  counter-reset: paso;
+}
+.clase-paso {
+  counter-increment: paso;
+  position: relative;
+  padding: 0 0 2px 34px;
+  margin-bottom: 18px;
+}
+.clase-paso::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--azul, #1cb0f6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clase-paso .paso-tit {
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.35;
+  margin: 2px 0 4px;
+}
+.clase-paso .paso-texto p { margin: 0 0 8px; line-height: 1.55; }
+.clase-paso .paso-texto p:last-child { margin-bottom: 0; }
+
+/* Los ejemplos de un paso: el inglés arriba, el español debajo en gris, y el
+   altavoz a la izquierda para que se pueda ir escuchando sin leer. */
+.clase-ejs { list-style: none; margin: 8px 0 0; padding: 0; }
+.clase-ejs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--fondo2);
+  margin-bottom: 6px;
+}
+.clase-ejs li:last-child { margin-bottom: 0; }
+.clase-ejs .icono-btn { flex: none; margin-top: -2px; }
+.clase-ejs .ej-en { display: block; font-weight: 700; line-height: 1.4; }
+.clase-ejs .ej-es { display: block; font-size: 13px; color: var(--apagado, #777); line-height: 1.4; }
+
+.clase-porque {
+  margin-top: 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px 14px;
+  background: var(--fondo2);
+}
+.clase-porque .tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--apagado, #777);
+  margin-bottom: 8px;
+}
+.clase-porque .cuerpo p { margin: 0 0 8px; line-height: 1.55; font-size: .96rem; }
+.clase-porque .cuerpo p:last-child { margin-bottom: 0; }
+
+.clase-mas { margin-top: 16px; }
+.clase-mas .tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--apagado, #777);
+  margin-bottom: 8px;
+}
+
+/* ---------------- La puerta ----------------
+   Tapa la aplicación entera hasta que se entra. Va en position: fixed y con
+   scroll propio porque en un teléfono en horizontal el formulario no cabe, y
+   si no puede desplazarse el botón de entrar queda fuera de la pantalla. */
+
+body.con-puerta { overflow: hidden; }
+
+.puerta {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--fondo);
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.puerta-caja {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.puerta-marca { font-size: 46px; line-height: 1; margin-bottom: 6px; }
+.puerta-caja h1 { margin: 0 0 6px; font-size: 1.7rem; }
+.puerta-sub {
+  margin: 0 0 16px;
+  font-size: .95rem;
+  color: var(--apagado, #777);
+  line-height: 1.5;
+}
+.puerta-caja .campo { width: 100%; text-align: left; }
+.puerta-caja .btn { width: 100%; }
+.puerta-pie {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: var(--apagado, #777);
+  line-height: 1.5;
+}
+
+/* La clase de vocabulario: la palabra grande, la traducción debajo y un botón
+   ancho para oírla. El botón es grande a propósito — la idea es que se toque
+   varias veces mientras se repite en voz alta. */
+
+.vocab-clase { list-style: none; margin: 14px 0 0; padding: 0; }
+.vocab-clase li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  margin-bottom: 8px;
+}
+.vocab-clase li:last-child { margin-bottom: 0; }
+.vocab-oir {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: none;
+  background: var(--fondo2);
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vocab-oir:active { background: var(--azul, #1cb0f6); }
+.vocab-icono { font-size: 22px; line-height: 1; }
+.vocab-en { display: block; font-size: 1.1rem; font-weight: 800; line-height: 1.3; }
+.vocab-es { display: block; font-size: .95rem; color: var(--tinta); line-height: 1.35; }
+.vocab-nota { display: block; font-size: 12px; color: var(--apagado, #777); margin-top: 2px; }
+
+/* Los pares de sonido de la clase de pronunciación. Las dos palabras del par
+   ocupan lo mismo y están pegadas: la comparación es el contenido, así que
+   tienen que poder oírse una detrás de otra sin mover el dedo. */
+
+.par-sonido {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  margin-top: 10px;
+}
+.par-botones { display: flex; align-items: center; gap: 8px; }
+.par-vs { flex: none; font-size: 13px; color: var(--apagado, #777); }
+.par-palabra {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 12px;
+  background: var(--fondo2);
+  cursor: pointer;
+}
+.par-palabra:active { background: var(--azul, #1cb0f6); color: #fff; }
+.par-en { font-size: 1.15rem; font-weight: 800; }
+.par-simbolo { font-size: 13px; color: var(--apagado, #777); }
+.par-oir { font-size: 15px; }
+.par-tip { margin-top: 9px; font-size: 13px; line-height: 1.45; color: var(--tinta); }

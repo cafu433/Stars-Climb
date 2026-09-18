@@ -1,0 +1,842 @@
+/* El motor: convierte contenido en ejercicios.
+ *
+ * Una lección no trae ejercicios escritos a mano; trae temas y tipos
+ * permitidos, y acá se arman en el momento. Por eso repetir una lección no es
+ * repetir las mismas diez pantallas: cambian las palabras, cambian los
+ * distractores y cambia la forma de preguntar.
+ *
+ * La elección de qué preguntar no es al azar. Prioriza lo que está por vencer
+ * en el repaso espaciado y lo que se ha fallado antes; lo que ya está aprendido
+ * aparece sólo de vez en cuando, para no gastar la sesión en lo que ya sabe.
+ */
+(function () {
+  "use strict";
+
+  const D = function () { return APP.datos; };
+
+  function revolver(a) {
+    const x = a.slice();
+    for (let i = x.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = x[i]; x[i] = x[j]; x[j] = t;
+    }
+    return x;
+  }
+
+  function alAzar(a) {
+    return a[Math.floor(Math.random() * a.length)];
+  }
+
+  function tercera(base) {
+    if (base === "have") return "has";
+    if (base === "be") return "is";
+    if (base === "go") return "goes";
+    if (base === "do") return "does";
+    if (/[sxz]$|ch$|sh$/.test(base)) return base + "es";
+    if (/[^aeiou]y$/.test(base)) return base.slice(0, -1) + "ies";
+    return base + "s";
+  }
+
+  function gerundio(base) {
+    if (base === "be") return "being";
+    if (/[^aeiou]e$/.test(base)) return base.slice(0, -1) + "ing";
+    if (/^(run|put|begin|get|sit|stop|plan)$/.test(base)) return base + base.slice(-1) + "ing";
+    return base + "ing";
+  }
+
+  /* ---------------- Elegir qué preguntar ----------------
+   * Cada tarjeta candidata recibe un peso; después se sortea con ese peso. No
+   * se toman "las N con más peso" a propósito: eso haría que la misma lección
+   * repitiera siempre las mismas palabras difíciles y nunca mostrara el resto.
+   */
+  function peso(id) {
+    const t = APP.srs.tarjeta(id);
+    if (!t.rep && !t.fallos) return 3; // nueva: interesa mostrarla
+    if (APP.srs.vencida(id)) return 5; // toca repasarla hoy
+    const f = APP.srs.fuerza(id);
+    return Math.max(0.4, 3 * (1 - f)); // cuanto más floja, más probable
+  }
+
+  function sortear(candidatos, n) {
+    const pool = candidatos.slice();
+    const salida = [];
+    while (salida.length < n && pool.length) {
+      const pesos = pool.map(function (c) { return peso(c.id); });
+      const total = pesos.reduce(function (a, b) { return a + b; }, 0);
+      let r = Math.random() * total;
+      let i = 0;
+      while (i < pool.length - 1 && r > pesos[i]) {
+        r -= pesos[i];
+        i++;
+      }
+      salida.push(pool.splice(i, 1)[0]);
+    }
+    return salida;
+  }
+
+  /* El tope de nivel por defecto, según dónde esté la lección en el curso.
+   *
+   * Sin esto había lecciones básicas hechas casi enteras de material
+   * avanzado: "Verbos del día" es de las primeras unidades y nueve de sus
+   * quince tarjetas eran de nivel 3. El tema era el correcto y el nivel,
+   * absurdo — el mismo error que hacía preguntar "Have a lovely evening" en
+   * la lección "Hola".
+   *
+   * Una lección puede pedir un tope más bajo con nivelMax (las tres primeras
+   * lo ponen en 1). Lo que no puede es subirlo por encima del de su nivel.
+   */
+  const TOPE_POR_NIVEL = { basico: 2, intermedio: 3 };
+
+  function topeDe(leccion) {
+    const porNivel = TOPE_POR_NIVEL[leccion.nivel];
+    if (leccion.nivelMax && porNivel) return Math.min(leccion.nivelMax, porNivel);
+    return leccion.nivelMax || porNivel || 0;
+  }
+
+  function candidatas(skills, filtro, nivelMax) {
+    let out = [];
+    skills.forEach(function (s) {
+      out = out.concat(D().porSkill(s));
+    });
+    /* Un tope de nivel para que una lección de principiante no alcance las
+     * frases largas del mismo tema. Sin esto, la primera lección del curso
+     * podía preguntar "Have a lovely evening" a alguien que recién aprendió
+     * que "hi" es hola: el tema era el correcto y el nivel, absurdo.
+     *
+     * Si con el tope no queda casi nada, se suelta: más vale una lección un
+     * poco difícil que una lección de tres ejercicios. */
+    if (nivelMax) {
+      const cabe = out.filter(function (t) { return (t.nivel || 2) <= nivelMax; });
+      if (cabe.length >= 8) out = cabe;
+    }
+    if (filtro) out = out.filter(filtro);
+    return out;
+  }
+
+  function distractores(tarjeta, banco, campo, n) {
+    /* Los distractores buenos se parecen a la respuesta: mismo tema y largo
+     * parecido. Un distractor obviamente absurdo convierte el ejercicio en un
+     * "aprieta el más largo" y no enseña nada. */
+    const otros = banco.filter(function (t) { return t.id !== tarjeta.id && t[campo]; });
+    const mismoTema = otros.filter(function (t) { return t.skill === tarjeta.skill; });
+    const fuente = mismoTema.length >= n ? mismoTema : otros;
+    const objetivo = (tarjeta[campo] || "").length;
+    const ordenados = revolver(fuente).sort(function (a, b) {
+      return Math.abs(a[campo].length - objetivo) - Math.abs(b[campo].length - objetivo);
+    });
+    const vistos = {};
+    const out = [];
+    ordenados.forEach(function (t) {
+      if (out.length >= n) return;
+      const clave = APP.texto.normalizar(t[campo]);
+      if (vistos[clave] || clave === APP.texto.normalizar(tarjeta[campo])) return;
+      vistos[clave] = true;
+      out.push(t);
+    });
+    return out;
+  }
+
+  /* ---------------- Constructores por tipo ----------------
+   * Cada uno devuelve un ejercicio o null. Devolver null es legítimo: significa
+   * "con este contenido este ejercicio no tiene sentido" (armar una frase con
+   * una palabra suelta, por ejemplo) y el generador simplemente prueba otro.
+   */
+
+  /* Qué partes de un ejercicio están en inglés.
+   *
+   * Hace falta para poder tocar una palabra y ver qué significa: si se hicieran
+   * tocables las palabras españolas, tocar "conocerte" respondería "no está en
+   * el curso", que es absurdo. Y si no se marca nada, la función no se puede
+   * ofrecer en los ejercicios —que es justo donde más falta hace, porque una
+   * pregunta con una palabra que no conoces no se puede contestar—.
+   *
+   * Se anota acá, al construir, y no se adivina al pintar: el mismo tipo
+   * "escribe" sirve para traducir (enunciado en español) y para el dictado
+   * (sin enunciado), y el mismo "arma" va en los dos sentidos.
+   */
+  const constructores = {
+    "elige-en": function (t, banco) {
+      const malos = distractores(t, banco, "en", 3);
+      if (malos.length < 3) return null;
+      const opciones = revolver(
+        [{ texto: t.en, icon: t.icon, correcta: true }].concat(
+          malos.map(function (m) { return { texto: m.en, icon: m.icon, correcta: false }; })
+        )
+      );
+      return {
+        tipo: "elige-en",
+        tarjetaId: t.id,
+        enunciado: "¿Cómo se dice en inglés?",
+        prompt: t.es,
+        promptIcon: t.icon,
+        promptHex: t.hex,
+        opciones: opciones,
+        audioAlAcertar: t.en,
+        respuesta: t.en,
+        nota: t.nota,
+        promptEn: false,
+        opcionesEn: true,
+      };
+    },
+
+    "elige-es": function (t, banco) {
+      const malos = distractores(t, banco, "es", 3);
+      if (malos.length < 3) return null;
+      const opciones = revolver(
+        [{ texto: t.es, correcta: true }].concat(
+          malos.map(function (m) { return { texto: m.es, correcta: false }; })
+        )
+      );
+      return {
+        tipo: "elige-es",
+        tarjetaId: t.id,
+        enunciado: "¿Qué significa?",
+        prompt: t.en,
+        promptIcon: t.icon,
+        audio: t.en,
+        opciones: opciones,
+        respuesta: t.es,
+        nota: t.nota,
+        promptEn: true,
+        opcionesEn: false,
+      };
+    },
+
+    "escucha-elige": function (t, banco) {
+      if (!APP.audio.hayVoz()) return null;
+      const malos = distractores(t, banco, "en", 3);
+      if (malos.length < 3) return null;
+      const opciones = revolver(
+        [{ texto: t.en, correcta: true }].concat(
+          malos.map(function (m) { return { texto: m.en, correcta: false }; })
+        )
+      );
+      return {
+        tipo: "escucha-elige",
+        tarjetaId: t.id,
+        enunciado: "¿Qué escuchaste?",
+        audio: t.en,
+        autoAudio: true,
+        opciones: opciones,
+        respuesta: t.en,
+        traduccion: t.es,
+        opcionesEn: true,
+      };
+    },
+
+    "arma-en": function (t, banco) {
+      const piezas = APP.texto.fichas(t.en);
+      if (piezas.length < 3) return null;
+      return {
+        tipo: "arma",
+        tarjetaId: t.id,
+        enunciado: "Arma la frase en inglés",
+        prompt: t.es,
+        respuesta: t.en,
+        fichas: revolver(piezas.concat(fichasSenuelo(t, banco, piezas))),
+        audioAlAcertar: t.en,
+        idioma: "en",
+        promptEn: false,
+        fichasEn: true,
+      };
+    },
+
+    "arma-es": function (t) {
+      const piezas = APP.texto.fichas(t.es);
+      if (piezas.length < 3) return null;
+      return {
+        tipo: "arma",
+        tarjetaId: t.id,
+        enunciado: "Arma la traducción",
+        prompt: t.en,
+        audio: t.en,
+        respuesta: t.es,
+        fichas: revolver(piezas),
+        idioma: "es",
+        promptEn: true,
+        fichasEn: false,
+      };
+    },
+
+    "escribe-en": function (t) {
+      if (t.en.split(/\s+/).length > 9) return null;
+      return {
+        tipo: "escribe",
+        tarjetaId: t.id,
+        enunciado: "Escríbelo en inglés",
+        prompt: t.es,
+        promptIcon: t.icon,
+        respuesta: t.en,
+        audioAlAcertar: t.en,
+        promptEn: false,
+      };
+    },
+
+    dictado: function (t) {
+      if (!APP.audio.hayVoz()) return null;
+      if (t.en.split(/\s+/).length > 9) return null;
+      return {
+        tipo: "escribe",
+        tarjetaId: t.id,
+        enunciado: "Escucha y escribe lo que oyes",
+        audio: t.en,
+        autoAudio: true,
+        respuesta: t.en,
+        traduccion: t.es,
+      };
+    },
+
+    habla: function (t) {
+      if (!APP.audio.hayMicrofono()) return null;
+      return {
+        tipo: "habla",
+        tarjetaId: t.id,
+        enunciado: "Dilo en voz alta",
+        prompt: t.en,
+        traduccion: t.es,
+        audio: t.en,
+        respuesta: t.en,
+        promptEn: true,
+      };
+    },
+  };
+
+  function fichasSenuelo(t, banco, piezas) {
+    /* Dos fichas de más para que armar la frase no sea "usa todas las que hay".
+     * Salen de otras frases del mismo tema: palabras plausibles, no ruido. */
+    const otras = banco
+      .filter(function (x) { return x.id !== t.id && x.tipo === "frase"; })
+      .slice(0, 40);
+    const usadas = {};
+    piezas.forEach(function (p) { usadas[p.toLowerCase()] = true; });
+    const pool = [];
+    otras.forEach(function (o) {
+      APP.texto.fichas(o.en).forEach(function (p) {
+        if (!usadas[p.toLowerCase()] && !/^[A-Z]/.test(p)) pool.push(p);
+      });
+    });
+    return revolver(pool).slice(0, Math.min(2, Math.max(0, 8 - piezas.length)));
+  }
+
+  /* ---------------- Ejercicios de gramática y oído ----------------
+   * Estos no salen de una tarjeta de vocabulario, así que se arman aparte y no
+   * alimentan el repaso espaciado (no hay una "palabra" que se olvide).
+   */
+
+  function ejercicioVerbo(tiempo) {
+    const v = alAzar(D().VERBOS);
+    const sujetos = ["She", "He", "My sister", "The manager"];
+    const sujeto = alAzar(sujetos);
+    const obj = v.obj ? " " + v.obj : "";
+    let correcta;
+    let opciones;
+    let oracion;
+    let explicacion;
+
+    if (tiempo === "pasado") {
+      correcta = v.past;
+      oracion = "Yesterday " + sujeto.toLowerCase() + " ___ (" + v.base + ")" + obj + ".";
+      if (v.base === "be") {
+        // was/were merece su propio ejercicio: es la confusión más común y no
+        // se arregla con el distractor de siempre ("beed" no lo dice nadie).
+        opciones = ["was", "were", "is"];
+        explicacion = "Con he/she/it el pasado de “be” es “was”. “Were” va con you/we/they.";
+      } else {
+        opciones = [correcta, v.base + "ed", tercera(v.base)];
+        explicacion =
+          v.past === v.base + "ed"
+            ? "Pasado regular: " + v.base + " + -ed."
+            : v.past === v.base
+            ? "Ojo: el pasado de “" + v.base + "” se escribe igual que el presente, pero cambia la pronunciación."
+            : "Verbo irregular: el pasado de “" + v.base + "” es “" + v.past + "”, no “" + v.base + "ed”.";
+      }
+    } else if (tiempo === "futuro") {
+      correcta = "will " + v.base;
+      oracion = "Tomorrow " + sujeto.toLowerCase() + " ___ (" + v.base + ")" + obj + ".";
+      opciones = [correcta, v.past, "will " + v.past];
+      explicacion = "Futuro con will: siempre “will” + el verbo en su forma base, sin -s ni -ed.";
+    } else {
+      correcta = tercera(v.base);
+      oracion = sujeto + " ___ (" + v.base + ")" + obj + " every day.";
+      opciones = [correcta, v.base, gerundio(v.base)];
+      explicacion =
+        "Presente simple con he/she/it: el verbo lleva -s (“" + correcta + "”). Es el error más repetido de los hispanohablantes.";
+    }
+
+    const unicas = [];
+    opciones.forEach(function (o) { if (unicas.indexOf(o) < 0) unicas.push(o); });
+    if (unicas.length < 2) return null;
+    return {
+      tipo: "hueco",
+      enunciado: "Completa la frase",
+      oracion: oracion,
+      opciones: revolver(unicas).map(function (o) {
+        return { texto: o, correcta: o === correcta };
+      }),
+      respuesta: correcta,
+      explicacion: explicacion,
+      traduccion: v.es,
+      oracionEn: true,
+      opcionesEn: true,
+    };
+  }
+
+  function ejercicioInged() {
+    const it = alAzar(D().INGED);
+    return {
+      tipo: "hueco",
+      enunciado: "Completa la frase",
+      oracion: it.sentence,
+      opciones: revolver(it.options).map(function (o) {
+        return { texto: o, correcta: o === it.correct };
+      }),
+      respuesta: it.correct,
+      explicacion: it.es,
+      oracionEn: true,
+      opcionesEn: true,
+    };
+  }
+
+  function ejercicioMinimos() {
+    if (!APP.audio.hayVoz()) return null;
+    const p = alAzar(D().VOCALES);
+    const objetivo = Math.random() < 0.5 ? p.a : p.b;
+    return {
+      tipo: "escucha-elige",
+      enunciado: "¿Qué palabra escuchaste?",
+      audio: objetivo,
+      autoAudio: true,
+      opciones: revolver([
+        { texto: p.a, simbolo: p.symbolA, correcta: objetivo === p.a },
+        { texto: p.b, simbolo: p.symbolB, correcta: objetivo === p.b },
+      ]),
+      respuesta: objetivo,
+      explicacion: p.tip,
+      opcionesEn: true,
+    };
+  }
+
+  function ejercicioRegistro() {
+    const p = alAzar(D().FORMAL);
+    const formal = Math.random() < 0.5;
+    return {
+      tipo: "elige-en",
+      enunciado: formal ? "¿Cuál es la forma formal?" : "¿Cuál es la forma informal?",
+      prompt: p.situation,
+      opciones: revolver([
+        { texto: p.formal, correcta: formal },
+        { texto: p.informal, correcta: !formal },
+      ]),
+      respuesta: formal ? p.formal : p.informal,
+      explicacion: "Formal: “" + p.formal + "”. Informal: “" + p.informal + "”.",
+      // El enunciado ("En una reunión de trabajo…") va en español.
+      promptEn: false,
+      opcionesEn: true,
+    };
+  }
+
+  function ejercicioPares(candidatas) {
+    const elegidas = sortear(candidatas.filter(function (t) { return t.tipo === "palabra"; }), 5);
+    if (elegidas.length < 4) return null;
+    return {
+      tipo: "pares",
+      enunciado: "Une cada palabra con su significado",
+      // Sólo el lado inglés se puede tocar: el español no hay nada que
+      // consultar, y ofrecerlo sólo daría "no está en el curso".
+      izquierda: revolver(elegidas.map(function (t) { return { id: t.id, texto: t.en, lado: "en" }; })),
+      derecha: revolver(elegidas.map(function (t) { return { id: t.id, texto: t.es, lado: "es" }; })),
+      izquierdaEn: true,
+      tarjetas: elegidas.map(function (t) { return t.id; }),
+    };
+  }
+
+  const ESPECIALES = {
+    verbo: function (skills) {
+      const tiempo = skills.indexOf("pasado") >= 0 ? "pasado" : skills.indexOf("futuro") >= 0 ? "futuro" : "presente";
+      return ejercicioVerbo(tiempo);
+    },
+    hueco: function (skills) {
+      if (skills.indexOf("inged") >= 0) return ejercicioInged();
+      const tiempo = skills.indexOf("pasado") >= 0 ? "pasado" : skills.indexOf("futuro") >= 0 ? "futuro" : "presente";
+      return Math.random() < 0.5 ? ejercicioInged() : ejercicioVerbo(tiempo);
+    },
+    minimos: ejercicioMinimos,
+    registro: ejercicioRegistro,
+  };
+
+  /* ---------------- Armar una sesión ---------------- */
+
+  function generar(tipo, tarjeta, banco) {
+    const f = constructores[tipo];
+    if (!f) return null;
+    return f(tarjeta, banco);
+  }
+
+  function repetido(lista, ej) {
+    // No preguntar dos veces la misma tarjeta dentro de una sesión corta: es lo
+    // que más se nota y lo que más molesta.
+    if (!ej.tarjetaId) return false;
+    return lista.some(function (x) { return x.tarjetaId === ej.tarjetaId; });
+  }
+
+  /* Una lección de leer: el texto primero, y después sus preguntas. Va aparte
+   * del resto porque no se arma por tarjetas: el texto es la unidad, y
+   * trocearlo en ejercicios sueltos perdería justo lo que se entrena, que es
+   * seguir una idea a lo largo de varias frases. */
+  function sesionLectura(leccion) {
+    const t = APP.datosLectura && APP.datosLectura.texto(leccion.texto);
+    if (!t) return [];
+    const out = [{ tipo: "lectura-texto", texto: t.id, titulo: t.titulo, cuerpo: t.texto, glosario: t.glosario, emo: t.emo }];
+    revolver(t.preguntas.slice()).forEach(function (p, i) {
+      out.push({
+        tipo: "lectura-pregunta",
+        texto: t.id,
+        id: t.id + "-p" + i,
+        pregunta: p.p,
+        opciones: p.op.slice(),
+        ok: p.op[p.ok],
+        /* En qué idioma está la pregunta. Importa para el diccionario: en el
+         * nivel 1 las preguntas van en español —para que la dificultad esté en
+         * entender el texto y no la pregunta— y hacer tocables esas palabras
+         * daría "esta palabra no está en el curso" sobre «olvida», que es
+         * absurdo y hace dudar de si el diccionario sirve. */
+        idioma: t.nivel === 1 ? "es" : "en",
+      });
+    });
+    return out;
+  }
+
+  /* Tandas de una o varias reglas, repartidas. Cuando la lección pide dos
+   * reglas se alternan en vez de darse una detrás de otra: mezcladas obligan a
+   * decidir cuál aplica, que es la mitad de la dificultad real. */
+  function sesionReglas(leccion, modo) {
+    const ids = leccion.reglas || [];
+    if (!ids.length || !APP.reglas) return [];
+    const porRegla = ids.map(function (id) {
+      return APP.reglas.tanda(id, Math.ceil((leccion.n || 12) / ids.length) + 2, modo);
+    });
+    const out = [];
+    let i = 0;
+    while (out.length < (leccion.n || 12)) {
+      let quedaba = false;
+      for (let r = 0; r < porRegla.length; r++) {
+        if (porRegla[r][i]) { out.push(porRegla[r][i]); quedaba = true; }
+        if (out.length >= (leccion.n || 12)) break;
+      }
+      if (!quedaba) break;
+      i++;
+    }
+    return out;
+  }
+
+  /* ---------------- Las etapas de una lección ----------------
+   *
+   * Una lección no es una tanda de ejercicios mezclados: es una secuencia.
+   * Primero ver, después reconocer entre opciones, después escribirlo sin
+   * opciones, y al final decirlo en voz alta.
+   *
+   * El orden no es decorativo. Reconocer la respuesta entre cuatro es mucho
+   * más fácil que producirla, y quedarse sólo en reconocer da la sensación de
+   * saber algo que después no sale cuando hace falta. Cada etapa pide un poco
+   * más que la anterior sobre el mismo material, que es lo que hace que se
+   * fije en vez de pasar de largo.
+   */
+  const ETAPAS = [
+    { id: "ver", nombre: "Ver", sub: "Mira cómo es" },
+    { id: "reconocer", nombre: "Reconocer", sub: "Elige la correcta" },
+    { id: "escribir", nombre: "Escribir", sub: "Ahora sin opciones" },
+    { id: "escuchar", nombre: "Escuchar", sub: "Sin mirar la palabra" },
+    { id: "decir", nombre: "Decir", sub: "En voz alta" },
+  ];
+
+  function etapaDe(ej) {
+    if (ej.tipo === "pares") return "ver";
+    if (ej.tipo === "habla") return "decir";
+    if (ej.tipo === "escucha-elige") return "escuchar";
+    if (ej.tipo === "escribe") return ej.autoAudio ? "escuchar" : "escribir";
+    if (ej.tipo === "arma" || ej.tipo === "regla-escribe") return "escribir";
+    return "reconocer";
+  }
+
+  function ordenarPorEtapa(ejercicios) {
+    const orden = {};
+    ETAPAS.forEach(function (e, i) { orden[e.id] = i; });
+    return ejercicios
+      .map(function (e) { return Object.assign({}, e, { etapa: e.etapa || etapaDe(e) }); })
+      .sort(function (a, b) { return orden[a.etapa] - orden[b.etapa]; });
+  }
+
+  /* Completa las etapas que falten.
+   *
+   * Una lección declara qué tipos de ejercicio quiere, y muchas sólo pedían
+   * reconocer. Eso hacía lecciones cortas en las que nunca se escribía ni se
+   * decía nada: se avanzaba rápido y se olvidaba igual de rápido. Ahora lo
+   * declarado marca el énfasis, pero las cinco etapas se recorren siempre.
+   *
+   * Las de escuchar y decir dependen del aparato: si no hay voz o micrófono,
+   * el constructor devuelve null y esa etapa simplemente no aparece. No se
+   * fuerza nada que no se pueda contestar.
+   */
+  function completarEtapas(leccion, ejercicios) {
+    // El mismo tope de nivel que usó sesionNormal. Sin repetirlo aquí, las
+    // etapas que se rellenan al final volvían a sacar frases de nivel 2 y se
+    // colaban justo por la puerta de atrás.
+    const banco = candidatas(leccion.skills, null, topeDe(leccion));
+    if (!banco.length) return ejercicios;
+
+    const hay = {};
+    ejercicios.forEach(function (e) { hay[e.etapa || etapaDe(e)] = (hay[e.etapa || etapaDe(e)] || 0) + 1; });
+
+    const receta = [
+      { etapa: "ver", tipos: ["pares"], cuantos: 1 },
+      { etapa: "reconocer", tipos: ["elige-en", "elige-es"], cuantos: 4 },
+      { etapa: "escribir", tipos: ["escribe-en", "arma-en"], cuantos: 4 },
+      { etapa: "escuchar", tipos: ["dictado", "escucha-elige"], cuantos: 3 },
+      { etapa: "decir", tipos: ["habla"], cuantos: 2 },
+    ];
+
+    const extra = [];
+    receta.forEach(function (r) {
+      let faltan = r.cuantos - (hay[r.etapa] || 0);
+      let vueltas = 0;
+      let i = 0;
+      // Dentro de una etapa no se repite tarjeta; entre etapas SÍ, y a
+      // propósito: la misma palabra se ve, se reconoce, se escribe y se dice.
+      // Repetirla en otra etapa es la idea, no un descuido.
+      //
+      // Comprobarlo contra la lección entera era justo lo que impedía que las
+      // etapas nuevas existieran: con nueve palabras y diez ejercicios ya
+      // hechos, todo lo que se generaba salía "repetido" y la lección se
+      // quedaba sin escribir ni decir, en silencio.
+      const deEstaEtapa = [];
+      while (faltan > 0 && vueltas < 40) {
+        vueltas++;
+        const tipo = r.tipos[i % r.tipos.length];
+        i++;
+        const fuente = tipo === "arma-en"
+          ? banco.filter(function (t) { return t.tipo === "frase"; })
+          : banco;
+        if (!fuente.length) break;
+        const t = sortear(fuente, 1)[0];
+        const ej = tipo === "pares" ? ejercicioPares(banco) : generar(tipo, t, banco);
+        if (!ej) continue;
+        if (repetido(deEstaEtapa, ej)) continue;
+        deEstaEtapa.push(ej);
+        extra.push(ej);
+        faltan--;
+      }
+    });
+    return ejercicios.concat(extra);
+  }
+
+  /* Oír y decir la frase de una regla.
+   *
+   * Una lección de gramática se quedaba en leer y escribir: se aprendía la
+   * regla sin haberla dicho nunca en voz alta, y después no sale al hablar.
+   * Se arman con la frase ya resuelta —"She is my sister"— que es una oración
+   * de verdad y no una palabra suelta.
+   *
+   * Sólo con las reglas cuya frase tiene contexto: "___" resuelto es una
+   * palabra, y hacer repetir "it" a secas no enseña a hablar.
+   */
+  function vozDeRegla(ejercicios, cuantosOir, cuantosDecir) {
+    if (!APP.reglas) return [];
+    const frases = [];
+    const vistas = {};
+    ejercicios.forEach(function (e) {
+      if (!e.regla || !e.frase) return;
+      const pelada = String(e.frase).replace(/_{3}/g, "").replace(/[\s…·.?]/g, "");
+      if (!pelada) return;                       // era sólo el hueco
+      const hecha = APP.reglas.resuelta(e);
+      if (vistas[hecha] || hecha.split(/\s+/).length < 3) return;
+      vistas[hecha] = true;
+      frases.push({ en: hecha, es: e.es || "" });
+    });
+
+    const out = [];
+    const mezcladas = revolver(frases);
+    if (APP.audio.hayVoz()) {
+      mezcladas.slice(0, cuantosOir).forEach(function (f) {
+        out.push({
+          tipo: "escribe",
+          enunciado: "Escucha y escribe lo que oyes",
+          audio: f.en,
+          autoAudio: true,
+          respuesta: f.en,
+          traduccion: f.es,
+          etapa: "escuchar",
+        });
+      });
+    }
+    if (APP.audio.hayMicrofono()) {
+      mezcladas.slice(cuantosOir, cuantosOir + cuantosDecir).forEach(function (f) {
+        out.push({
+          tipo: "habla",
+          enunciado: "Dilo en voz alta",
+          prompt: f.en,
+          traduccion: f.es,
+          audio: f.en,
+          respuesta: f.en,
+          promptEn: true,
+          etapa: "decir",
+        });
+      });
+    }
+    return out;
+  }
+
+  function sesionLeccion(leccion) {
+    if (leccion.texto) return sesionLectura(leccion);
+
+    const total = leccion.n || 12;
+
+    // Una lección puede pedir reglas, ejercicios normales, o las dos cosas.
+    if (!leccion.reglas) {
+      return ordenarPorEtapa(completarEtapas(leccion, sesionNormal(leccion)));
+    }
+
+    /* Una lección de regla se hace en dos etapas sobre el mismo material:
+     * primero eligiendo entre opciones y después escribiéndolo sin ellas.
+     * Antes sólo daba una de las dos —la que tocara según el dominio— y la de
+     * escribir no llegaba hasta ocho aciertos después, en otra sesión. */
+    const mitad = Math.max(3, Math.round(total * 0.45));
+    const eligiendo = sesionReglas(Object.assign({}, leccion, { n: mitad }), "elegir");
+    const escribiendo = sesionReglas(Object.assign({}, leccion, { n: mitad }), "escribir");
+    const deReglas = eligiendo.concat(escribiendo);
+    const conVoz = deReglas.concat(vozDeRegla(eligiendo.concat(escribiendo), 3, 2));
+
+    if (!leccion.tipos) return ordenarPorEtapa(conVoz);
+
+    const resto = sesionNormal(
+      Object.assign({}, leccion, { n: Math.max(2, total - deReglas.length) })
+    );
+    return ordenarPorEtapa(completarEtapas(leccion, conVoz.concat(resto)));
+  }
+
+  function sesionNormal(leccion) {
+    const banco = candidatas(leccion.skills, null, topeDe(leccion));
+    const palabras = banco.filter(function (t) { return t.tipo === "palabra"; });
+    const frases = banco.filter(function (t) { return t.tipo === "frase"; });
+
+    const tipos = leccion.tipos.slice();
+    const especiales = tipos.filter(function (t) { return ESPECIALES[t]; });
+    const normales = tipos.filter(function (t) { return constructores[t]; });
+
+    const ejercicios = [];
+
+    // "Unir pares" abre la lección cuando hay vocabulario: es el ejercicio más
+    // suave y sirve de calentamiento antes de producir nada.
+    if (tipos.indexOf("pares") >= 0) {
+      const p = ejercicioPares(palabras);
+      if (p) ejercicios.push(p);
+    }
+
+    let intentos = 0;
+    let iTipo = 0;
+    while (ejercicios.length < leccion.n && intentos < leccion.n * 12) {
+      intentos++;
+
+      // Se alternan los tipos en vez de sortearlos: garantiza variedad dentro
+      // de la lección aunque el azar se ponga terco.
+      if (especiales.length && (!normales.length || intentos % 3 === 0)) {
+        const e = ESPECIALES[especiales[iTipo % especiales.length]](leccion.skills);
+        iTipo++;
+        if (e) ejercicios.push(e);
+        continue;
+      }
+      if (!normales.length) break;
+
+      const tipo = normales[iTipo % normales.length];
+      iTipo++;
+      const necesitaFrase = tipo === "arma-en" || tipo === "arma-es";
+      const fuente = necesitaFrase ? frases : banco;
+      if (!fuente.length) continue;
+      const t = sortear(fuente, 1)[0];
+      const ej = generar(tipo, t, banco);
+      if (ej && !repetido(ejercicios, ej)) ejercicios.push(ej);
+    }
+
+    /* Red de seguridad: si con los tipos pedidos no se pudo armar casi nada
+     * —por ejemplo en un navegador sin voz, donde los ejercicios de escuchar
+     * no existen— se completa con ejercicios de reconocer. Vale más una
+     * lección distinta a la planeada que una lección vacía. */
+    if (ejercicios.length < Math.min(4, leccion.n)) {
+      const respaldo = banco.length ? banco : D().TARJETAS;
+      let vueltas = 0;
+      while (ejercicios.length < Math.min(6, leccion.n) && vueltas < 60) {
+        vueltas++;
+        const t = sortear(respaldo, 1)[0];
+        if (!t) break;
+        const ej = generar("elige-es", t, respaldo) || generar("elige-en", t, respaldo);
+        if (ej && !repetido(ejercicios, ej)) ejercicios.push(ej);
+      }
+    }
+
+    return ejercicios.slice(0, leccion.n);
+  }
+
+  function sesionRepaso(n) {
+    /* El repaso mezcla todo lo vencido, sin importar de qué unidad venga, y
+     * usa siempre el tipo más exigente que la tarjeta permita: repasar es
+     * comprobar que se sabe, no volver a reconocerlo entre cuatro opciones. */
+    const ids = APP.srs.pendientes(n || 15);
+    const banco = D().TARJETAS;
+    const ejercicios = [];
+    ids.forEach(function (id) {
+      const t = D().porId(id);
+      if (!t) return;
+      const opciones = t.tipo === "frase"
+        ? ["arma-en", "escribe-en", "dictado", "arma-es"]
+        : ["escribe-en", "escucha-elige", "elige-en", "elige-es"];
+      for (let i = 0; i < opciones.length; i++) {
+        const ej = generar(opciones[i], t, banco);
+        if (ej) {
+          ejercicios.push(ej);
+          break;
+        }
+      }
+    });
+    return ejercicios;
+  }
+
+  function sesionErrores(n) {
+    const errores = APP.almacen.estado().errores.filter(function (e) { return !e.superado; });
+    const banco = D().TARJETAS;
+    const ejercicios = [];
+    errores.slice(0, n || 12).forEach(function (e) {
+      const t = D().porId(e.id);
+      if (!t) return;
+      const opciones = t.tipo === "frase" ? ["arma-en", "escribe-en"] : ["elige-en", "escribe-en", "elige-es"];
+      for (let i = 0; i < opciones.length; i++) {
+        const ej = generar(opciones[i], t, banco);
+        if (ej) {
+          ejercicios.push(ej);
+          break;
+        }
+      }
+    });
+    return ejercicios;
+  }
+
+  function sesionTema(skill, n) {
+    return sesionLeccion({
+      skills: [skill],
+      tipos: ["elige-en", "elige-es", "escucha-elige", "escribe-en", "arma-en", "pares"],
+      n: n || 12,
+    });
+  }
+
+  window.APP = window.APP || {};
+  APP.motor = {
+    sesionLeccion: sesionLeccion,
+    sesionLectura: sesionLectura,
+    ETAPAS: ETAPAS,
+    etapaDe: etapaDe,
+    sesionReglas: sesionReglas,
+    sesionRepaso: sesionRepaso,
+    sesionErrores: sesionErrores,
+    sesionTema: sesionTema,
+    revolver: revolver,
+    tercera: tercera,
+  };
+})();

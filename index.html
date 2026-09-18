@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover + los safe-area-inset del CSS: sin esto, en un iPhone la
+     barra inferior queda debajo del indicador de inicio y no se puede tocar. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#58cc02">
+<meta name="description" content="Curso de inglés británico con repaso espaciado, pronunciación y progreso guardado en el teléfono. Funciona sin internet.">
+<title>Stars Climb</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icono-192.png">
+<link rel="apple-touch-icon" href="icons/icono-apple.png">
+<!-- Safari no lee el manifest: estas tres etiquetas son las que hacen que,
+     agregada a la pantalla de inicio, se abra sin la barra del navegador. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Stars Climb">
+
+<!-- La aplicación se guarda para funcionar sin internet sólo cuando se sirve
+     desde un servidor. Esta marca es la que lo autoriza; la versión de una sola
+     página no la trae, porque ahí no hay archivo que registrar. -->
+<meta name="modo-sin-conexion" content="si">
+
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="app">
+  <div class="contenido" style="padding-top:40px">
+    <div class="centro">
+      <div style="font-size:56px">📚</div>
+      <p class="apagado">Cargando…</p>
+    </div>
+  </div>
+</div>
+
+<noscript>
+  <div style="padding:24px;font-family:sans-serif">
+    Esta aplicación necesita JavaScript activado para funcionar.
+  </div>
+</noscript>
+
+<!-- El orden importa: cada archivo se registra en window.APP y app.js arranca
+     al final, cuando ya están todos. Sin módulos ni empaquetador a propósito:
+     así funciona igual servida desde cualquier carpeta y abre al instante. -->
+<script src="js/dom.js"></script>
+<script src="js/almacen.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/datos-verbos.js"></script>
+<script src="js/datos-sonidos.js"></script>
+<script src="js/datos-gramatica.js"></script>
+<script src="js/datos-reglas.js"></script>
+<script src="js/datos-lectura.js"></script>
+<script src="js/datos-palabras.js"></script>
+<script src="js/curriculo.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/texto.js"></script>
+<script src="js/motor.js"></script>
+<script src="js/verbos.js"></script>
+<script src="js/pronunciacion.js"></script>
+<script src="js/gramatica.js"></script>
+<script src="js/reglas.js"></script>
+<script src="js/diccionario.js"></script>
+<script src="js/examen.js"></script>
+<script src="js/tutor.js"></script>
+<script src="js/cuenta.js"></script>
+<script src="js/leccion.js"></script>
+<script src="js/pantallas.js"></script>
+<script src="js/puerta.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
