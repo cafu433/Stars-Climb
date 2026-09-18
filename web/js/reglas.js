@@ -26,13 +26,21 @@
   /* Evita que salga dos veces seguidas el mismo ejercicio. Es más importante
    * de lo que parece: repetido al hilo se contesta sin leer, de memoria corta,
    * y esa repetición no enseña nada. */
-  function tanda(reglaId, cuantos) {
+  /* 'forzar' permite pedir explícitamente ejercicios de elegir o de escribir,
+   * sin mirar el dominio. Lo usa la lección por etapas: primero una tanda de
+   * reconocer y después una de escribir, en la misma sesión. Sin esto, una
+   * lección sólo podía dar uno de los dos y la etapa de escribir no existía
+   * hasta ocho aciertos después. */
+  function tanda(reglaId, cuantos, forzar) {
     const regla = APP.datosReglas.regla(reglaId);
     if (!regla) return [];
 
     const n = cuantos || LARGO;
-    const etapa = APP.almacen.etapaRegla(reglaId);
-    const escribir = etapa >= 1;
+    const escribir = forzar === "escribir"
+      ? true
+      : forzar === "elegir"
+        ? false
+        : APP.almacen.etapaRegla(reglaId) >= 1;
     const out = [];
     const vistas = {};
     let intentos = 0;

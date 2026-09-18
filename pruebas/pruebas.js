@@ -872,6 +872,86 @@ prueba("el progreso de un sonido empieza en cero y sube al practicar", function 
   cierto(APP.pronunciacion.progresoDeSonido("i-larga") > 0);
 });
 
+/* ---------------- Enseñar antes de preguntar ---------------- */
+
+/* La primera lección del curso se llama "Hola" y empezaba preguntando, sin
+ * enseñar nada, y con frases del nivel siguiente: se le preguntaba a alguien
+ * que recién sabe que "hi" es hola cómo se dice "que tengas una linda tarde".
+ * Estas pruebas están para que eso no vuelva. */
+
+prueba("los saludos tienen palabras sueltas, no sólo frases", function () {
+  const v = APP.datos.porSkill("saludos");
+  const palabras = v.filter(function (t) { return t.tipo === "palabra"; });
+  cierto(palabras.length >= 15, "saludos tiene " + palabras.length + " palabras sueltas");
+  // Las primerísimas del idioma no pueden faltar.
+  ["hi", "hello", "good morning", "please", "thank you", "goodbye", "yes", "no"]
+    .forEach(function (p) {
+      cierto(palabras.some(function (t) { return t.en === p; }), "falta “" + p + "”");
+    });
+});
+
+prueba("una lección con tope de nivel no alcanza material de más arriba", function () {
+  const altos = [];
+  APP.curriculo.UNIDADES.forEach(function (u) {
+    u.lecciones.forEach(function (l) {
+      if (!l.nivelMax) return;
+      APP.motor.sesionLeccion(l).forEach(function (ej) {
+        const t = ej.tarjetaId && APP.datos.porId(ej.tarjetaId);
+        if (t && (t.nivel || 2) > l.nivelMax) altos.push(l.id + " → " + t.en);
+      });
+    });
+  });
+  igual(altos, []);
+});
+
+prueba("ninguna lección practica material por encima de su nivel", function () {
+  /* Había lecciones básicas hechas casi enteras de material avanzado:
+   * "Verbos del día" es de las primeras unidades y once de sus quince
+   * tarjetas eran de nivel 3. El tema era el correcto y el nivel, absurdo. */
+  const TOPE = { basico: 2, intermedio: 3 };
+  const fuera = [];
+  APP.curriculo.LECCIONES.forEach(function (l) {
+    const tope = TOPE[l.nivel];
+    if (!tope || l.texto) return;
+    APP.motor.sesionLeccion(l).forEach(function (ej) {
+      [ej.tarjetaId].concat(ej.tarjetas || []).forEach(function (id) {
+        const t = id && APP.datos.porId(id);
+        if (t && (t.nivel || 2) > tope) fuera.push(l.id + " → " + t.en);
+      });
+    });
+  });
+  igual(fuera, []);
+});
+
+prueba("toda lección de vocabulario tiene algo que enseñar antes", function () {
+  /* La clase de vocabulario se arma con las tarjetas de los ejercicios ya
+   * generados. Si una lección no tiene ninguna, volvería a empezar
+   * preguntando, que es justo lo que se quiere evitar. */
+  const mudas = [];
+  APP.curriculo.UNIDADES.forEach(function (u) {
+    u.lecciones.forEach(function (l) {
+      if ((l.clase || []).length || (l.reglas || []).length) return;  // explica gramática
+      if (l.texto) return;                                            // es de lectura
+      const ejercicios = APP.motor.sesionLeccion(l);
+      const vistos = {};
+      ejercicios.forEach(function (ej) {
+        [ej.tarjetaId].concat(ej.tarjetas || []).forEach(function (id) {
+          if (id && APP.datos.porId(id)) vistos[id] = true;
+        });
+      });
+      if (Object.keys(vistos).length >= 3) return;
+      // Una lección de pares mínimos no tiene vocabulario, pero sí sonidos
+      // que se oyen antes de preguntar por ellos.
+      const pares = ejercicios.filter(function (ej) {
+        return (ej.opciones || []).filter(function (o) { return o.simbolo; }).length === 2;
+      });
+      if (pares.length) return;
+      mudas.push(l.id + " (" + l.titulo + ")");
+    });
+  });
+  igual(mudas, []);
+});
+
 /* ---------------- Gramática ---------------- */
 
 prueba("todos los temas están completos", function () {
@@ -881,6 +961,61 @@ prueba("todos los temas están completos", function () {
       (t.ejemplos || []).length < 3;
   });
   igual(flojos.map(function (t) { return t.id; }), []);
+});
+
+/* Lo que hace que una clase se entienda es la estructura, no el texto: la
+ * idea primero, después pasos de lo simple a lo raro, cada uno con ejemplos
+ * al lado, y al final de dónde sale la regla. Estas pruebas están para que
+ * ninguna clase vuelva a ser un párrafo de corrido. */
+
+prueba("cada tema se explica por pasos, no de corrido", function () {
+  const flojos = APP.datosGramatica.TEMAS.filter(function (t) {
+    return !t.idea || !t.porque || (t.pasos || []).length < 4;
+  });
+  igual(flojos.map(function (t) { return t.id; }), []);
+});
+
+prueba("cada paso tiene título, texto y (casi siempre) ejemplos", function () {
+  const malos = [];
+  APP.datosGramatica.TEMAS.forEach(function (t) {
+    let conEjemplos = 0;
+    t.pasos.forEach(function (p, i) {
+      if (!p.titulo || !p.texto) malos.push(t.id + " paso " + (i + 1));
+      (p.ejemplos || []).forEach(function (e, j) {
+        if (!e.en || !e.es) malos.push(t.id + " paso " + (i + 1) + " ejemplo " + (j + 1));
+      });
+      if ((p.ejemplos || []).length) conEjemplos++;
+    });
+    // Un paso puede ser sólo de contexto, pero si casi ninguno trae ejemplos
+    // la clase volvió a ser teoría suelta.
+    if (conEjemplos < t.pasos.length - 1) malos.push(t.id + " casi sin ejemplos");
+  });
+  igual(malos, []);
+});
+
+prueba("el porqué explica de verdad, no repite la regla", function () {
+  // Un porqué de dos líneas no es un porqué, es un resumen.
+  const cortos = APP.datosGramatica.TEMAS.filter(function (t) {
+    return t.porque.length < 250;
+  });
+  igual(cortos.map(function (t) { return t.id; }), []);
+});
+
+prueba("en las clases sólo se cuela <b>, ninguna otra etiqueta", function () {
+  // El texto se pinta con permitirNegrita, que devuelve <b> y escapa todo lo
+  // demás. Una <i> perdida saldría en pantalla como &lt;i&gt;.
+  const sueltas = [];
+  APP.datosGramatica.TEMAS.forEach(function (t) {
+    const trozos = [t.idea, t.porque, t.explicacion || ""];
+    t.pasos.forEach(function (p) { trozos.push(p.titulo, p.texto); });
+    trozos.forEach(function (txt) {
+      String(txt).replace(/<\/?([a-z]+)>/g, function (_, etiqueta) {
+        if (etiqueta !== "b") sueltas.push(t.id + " → <" + etiqueta + ">");
+        return "";
+      });
+    });
+  });
+  igual(sueltas, []);
 });
 
 prueba("los ids de los temas no se repiten", function () {

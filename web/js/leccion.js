@@ -53,6 +53,13 @@
        * midiendo lo que sabes. */
       examen: op.examen || null,
       aciertosExamen: {},
+      /* Qué etapas ya se anunciaron. Una sola vez cada una: en la segunda
+       * vuelta —la de lo fallado— los ejercicios vienen mezclados de todas las
+       * etapas, y anunciarlas otra vez llenaba la lección de carteles
+       * repitiendo "Reconocer, Escribir, Reconocer…" cada dos preguntas. */
+      etapasVistas: {},
+      etapaAnunciada: null,
+      segundaVuelta: false,
     };
 
     if (!S.ejercicios.length) {
@@ -88,9 +95,50 @@
 
   /* ---------------- Dibujo ---------------- */
 
+  /* Anuncia la etapa al entrar en ella.
+   *
+   * Una lección no es una tanda de ejercicios mezclados: es una secuencia que
+   * pide cada vez un poco más sobre el mismo material. Ver → reconocer →
+   * escribir → escuchar → decir. Anunciarlo cambia cómo se afronta lo que
+   * viene: "ahora sin opciones" prepara para escribir, y sin ese aviso el
+   * primer ejercicio de escribir se siente como un salto injusto.
+   */
+  function anuncioEtapa(ej) {
+    const def = (APP.motor.ETAPAS || []).filter(function (e) { return e.id === ej.etapa; })[0];
+    if (!def) return "";
+    const cuantos = S.ejercicios.filter(function (x) { return x.etapa === ej.etapa; }).length;
+    const idx = (APP.motor.ETAPAS || []).map(function (e) { return e.id; }).indexOf(ej.etapa);
+
+    return (
+      '<div class="leccion-caja"><div class="leccion-cuerpo anuncio">' +
+      '<div class="pasos">' +
+      (APP.motor.ETAPAS || []).map(function (e, i) {
+        const hay = S.ejercicios.some(function (x) { return x.etapa === e.id; });
+        if (!hay) return "";
+        return '<span class="paso-punto' + (i < idx ? " hecho" : i === idx ? " ahora" : "") + '">' +
+          d.esc(e.nombre) + "</span>";
+      }).join("") +
+      "</div>" +
+      "<h1>" + d.esc(def.nombre) + "</h1>" +
+      '<p class="apagado">' + d.esc(def.sub) + "</p>" +
+      '<p class="mini apagado">' + cuantos + (cuantos === 1 ? " ejercicio" : " ejercicios") + "</p>" +
+      "</div>" +
+      '<div class="pie"><button class="btn" data-accion="etapa-seguir">Vamos</button></div></div>'
+    );
+  }
+
   function pintar() {
     const ej = actual();
     const avance = Math.round((S.i / S.total) * 100);
+
+    // En un examen no se anuncian etapas: ahí se mide, y la estructura de la
+    // práctica no viene al caso.
+    if (!S.examen && !S.segundaVuelta && ej.etapa && !S.etapasVistas[ej.etapa]) {
+      raiz.innerHTML = anuncioEtapa(ej);
+      return;
+    }
+    if (ej.etapa) S.etapaAnunciada = ej.etapa;
+
     raiz.innerHTML =
       '<div class="leccion-caja">' +
       cabecera(avance) +
@@ -112,8 +160,16 @@
       '<button class="icono-btn" data-accion="salir" aria-label="Salir">✕</button>' +
       '<div class="barra-prog"><i style="width:' + avance + '%"></i></div>' +
       '<span class="contador paso">' + Math.min(S.i + 1, S.total) + "/" + S.total + "</span>" +
-      "</div>"
+      "</div>" +
+      (S.etapaAnunciada && !S.examen
+        ? '<div class="etapa-actual">' + d.esc(nombreEtapa(S.etapaAnunciada)) + "</div>"
+        : "")
     );
+  }
+
+  function nombreEtapa(id) {
+    const e = (APP.motor.ETAPAS || []).filter(function (x) { return x.id === id; })[0];
+    return e ? e.nombre : "";
   }
 
   function cuerpo(ej) {
@@ -510,11 +566,14 @@
       '<div class="pie">' +
       '<button class="btn" data-accion="comprobar"' + (listo ? "" : " disabled") + ">" +
       etiqueta + "</button>" +
+      '<div class="pie-secundarios">' +
       (puedeRendirse
-        ? '<button class="btn hueco chico" style="margin-top:8px" data-accion="no-se">' +
-          "No la sé, muéstrame</button>"
+        ? '<button class="btn hueco chico" data-accion="no-se">No la sé, muéstrame</button>'
         : "") +
-      "</div>";
+      // Preguntar sin salir del ejercicio. Las dudas llegan justo acá, y si hay
+      // que salir a buscarlas a otra pantalla, no se preguntan.
+      (S.examen ? "" : '<button class="btn hueco chico" data-accion="preguntar">💬 Tengo una duda</button>') +
+      "</div></div>";
   }
 
   function hayRespuesta(ej) {
@@ -591,8 +650,39 @@
     } else if (ej.tipo === "habla") {
       const r = APP.texto.comparar(ej.respuesta, (S.respuesta && S.respuesta.texto) || "");
       correcto = r.nota >= 70;
-      detalle = pintarDiff(r) + '<div class="mini" style="margin-top:6px">' + r.nota + "% de las palabras salieron bien.</div>";
       calidad = r.nota >= 90 ? 2 : r.nota >= 70 ? 1 : 0;
+
+      /* Al hablar, "70%" no le dice nada a nadie. Lo que sirve es saber qué
+       * hacer ahora: seguir, repetir mirando, o volver a escucharlo antes de
+       * intentarlo. Se dice eso, y se ofrece repetir sin castigo: pronunciar
+       * mal a la primera es lo normal, y la única forma de arreglarlo es
+       * volver a intentarlo, no pasar a otra cosa. */
+      const fallaron = r.ops
+        .filter(function (o) { return o.tipo === "falta" || o.tipo === "cambio"; })
+        .map(function (o) { return o.palabra; })
+        .slice(0, 3);
+
+      let consejo;
+      if (r.nota >= 90) {
+        consejo = "Bien dicho. Se entendió entero.";
+      } else if (r.nota >= 70) {
+        consejo = fallaron.length
+          ? "Se entiende, pero <b>" + d.esc(fallaron.join(", ")) + "</b> no salió claro."
+          : "Se entiende. Un poco más despacio y queda perfecto.";
+      } else {
+        consejo = fallaron.length
+          ? "No se entendió <b>" + d.esc(fallaron.join(", ")) + "</b>. Escúchalo otra vez y repite."
+          : "No te escuché bien. Acércate al micrófono y prueba otra vez.";
+      }
+
+      detalle =
+        '<div class="chico">' + consejo + "</div>" +
+        pintarDiff(r) +
+        '<div class="mini apagado" style="margin-top:6px">Se entendió el ' + r.nota + "% de las palabras.</div>" +
+        '<div class="repetir-habla">' +
+        botonAudio(ej.respuesta, "Escuchar otra vez") +
+        '<button class="btn hueco chico" data-accion="repetir-habla">🎤 Decirlo otra vez</button>' +
+        "</div>";
     }
 
     registrar(ej, correcto, calidad);
@@ -719,11 +809,22 @@
     S.i += 1;
 
     if (S.i >= S.ejercicios.length) {
-      if (S.reintentos.length) {
-        // Segunda vuelta con lo fallado. No suma al total mostrado: la barra ya
-        // llegó al final y volver a moverla se leería como un castigo.
+      /* Una sola vuelta de repaso, no las que hagan falta.
+       *
+       * Encolar lo fallado cada vez que se falla hace que la lección no
+       * termine nunca mientras algo siga saliendo mal: quien más lo necesita
+       * es justo quien se queda atrapado. Se repasa una vez —que es donde
+       * está casi todo el beneficio— y lo que siga costando vuelve mañana por
+       * el repaso espaciado, que para eso está.
+       */
+      if (S.reintentos.length && !S.segundaVuelta) {
+        // No suma al total mostrado: la barra ya llegó al final y volver a
+        // moverla se leería como un castigo.
         S.ejercicios = S.ejercicios.concat(S.reintentos);
         S.reintentos = [];
+        // A partir de acá no se anuncian etapas: es una vuelta de repaso con
+        // lo fallado, mezclado a propósito.
+        S.segundaVuelta = true;
         pintar();
         return;
       }
@@ -896,6 +997,27 @@
         cerrar();
         fin();
         return;
+      }
+      if (a === "preguntar") {
+        const e = actual();
+        const sobre = e.frase
+          ? APP.reglas.resuelta(e) + (e.es ? " — " + e.es : "")
+          : e.prompt || e.oracion || e.respuesta || "";
+        APP.pantallas.preguntarTutor(sobre);
+        return;
+      }
+      if (a === "repetir-habla") {
+        /* Repetir no vuelve a contar: ya se anotó el primer intento. Si cada
+         * intento restara, repetir saldría caro y nadie lo haría, que es justo
+         * lo contrario de lo que hace falta para aprender a pronunciar. */
+        S.respuesta = null;
+        S.corregido = null;
+        pintar();
+        return;
+      }
+      if (a === "etapa-seguir") {
+        S.etapasVistas[actual().etapa] = true;
+        return pintar();
       }
       if (a === "no-se") return noLaSe();
       if (a === "palabra") {

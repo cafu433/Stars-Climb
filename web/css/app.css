@@ -1571,3 +1571,284 @@ h3 { font-size: .98rem; font-weight: 700; letter-spacing: -.008em; }
 /* El botón secundario, centrado bajo el principal. Suelto a la izquierda
    parecía un resto de otra maqueta. */
 .pie [data-accion="no-se"] { display: block; margin-left: auto; margin-right: auto; }
+
+/* --- Las etapas de una lección --- */
+.leccion-cuerpo.anuncio {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+}
+.leccion-cuerpo.anuncio h1 { margin: 10px 0 0; font-size: 2rem; }
+.leccion-cuerpo.anuncio p { margin: 0; }
+
+.pasos {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.paso-punto {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.paso-punto.hecho { color: var(--verde); border-color: currentColor; }
+.paso-punto.ahora {
+  color: #fff;
+  background: var(--azul);
+  border-color: var(--azul);
+}
+
+.etapa-actual {
+  font-size: .66rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-2);
+  text-align: center;
+  margin: -2px 0 8px;
+}
+
+/* Repetir una frase hablada: los dos botones juntos, escuchar y volver a
+   decirla. Es lo único que hay que hacer cuando sale mal. */
+.repetir-habla {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.repetir-habla .btn { width: auto; flex: 1 1 auto; }
+
+/* Los botones secundarios del pie, en fila y sin competir con el principal. */
+.pie-secundarios {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.pie-secundarios .btn { width: auto; }
+
+/* La duda, con el ejercicio a la vista para no perder de qué se hablaba. */
+.preg-contexto {
+  background: var(--fondo-2);
+  border-left: 3px solid var(--azul);
+  border-radius: 0 8px 8px 0;
+  padding: 9px 12px;
+  margin: 10px 0 14px;
+  font-size: .92rem;
+}
+.preg-sugeridas { display: flex; flex-direction: column; gap: 7px; margin: 12px 0; }
+.preg-sugeridas .btn { width: 100%; text-align: left; justify-content: flex-start; }
+#preg-chat { max-height: 42vh; overflow-y: auto; }
+
+/* ---------------- El cuerpo de una clase ----------------
+   Lo que hace que una explicación se entienda no es el texto, es el orden:
+   la idea primero, después los pasos numerados, y el porqué al final para
+   quien quiera saber de dónde sale la regla. Cada paso trae sus ejemplos
+   pegados, porque un ejemplo que está veinte líneas más abajo ya no explica
+   nada. */
+
+.clase-idea {
+  background: var(--fondo2);
+  border-left: 4px solid var(--azul, #1cb0f6);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 14px;
+  margin: 14px 0 4px;
+  font-size: 1.02rem;
+  line-height: 1.5;
+}
+
+.clase-pasos {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  counter-reset: paso;
+}
+.clase-paso {
+  counter-increment: paso;
+  position: relative;
+  padding: 0 0 2px 34px;
+  margin-bottom: 18px;
+}
+.clase-paso::before {
+  content: counter(paso);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--azul, #1cb0f6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clase-paso .paso-tit {
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.35;
+  margin: 2px 0 4px;
+}
+.clase-paso .paso-texto p { margin: 0 0 8px; line-height: 1.55; }
+.clase-paso .paso-texto p:last-child { margin-bottom: 0; }
+
+/* Los ejemplos de un paso: el inglés arriba, el español debajo en gris, y el
+   altavoz a la izquierda para que se pueda ir escuchando sin leer. */
+.clase-ejs { list-style: none; margin: 8px 0 0; padding: 0; }
+.clase-ejs li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--fondo2);
+  margin-bottom: 6px;
+}
+.clase-ejs li:last-child { margin-bottom: 0; }
+.clase-ejs .icono-btn { flex: none; margin-top: -2px; }
+.clase-ejs .ej-en { display: block; font-weight: 700; line-height: 1.4; }
+.clase-ejs .ej-es { display: block; font-size: 13px; color: var(--apagado, #777); line-height: 1.4; }
+
+.clase-porque {
+  margin-top: 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px 14px;
+  background: var(--fondo2);
+}
+.clase-porque .tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--apagado, #777);
+  margin-bottom: 8px;
+}
+.clase-porque .cuerpo p { margin: 0 0 8px; line-height: 1.55; font-size: .96rem; }
+.clase-porque .cuerpo p:last-child { margin-bottom: 0; }
+
+.clase-mas { margin-top: 16px; }
+.clase-mas .tit {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--apagado, #777);
+  margin-bottom: 8px;
+}
+
+/* ---------------- La puerta ----------------
+   Tapa la aplicación entera hasta que se entra. Va en position: fixed y con
+   scroll propio porque en un teléfono en horizontal el formulario no cabe, y
+   si no puede desplazarse el botón de entrar queda fuera de la pantalla. */
+
+body.con-puerta { overflow: hidden; }
+
+.puerta {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--fondo);
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.puerta-caja {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.puerta-marca { font-size: 46px; line-height: 1; margin-bottom: 6px; }
+.puerta-caja h1 { margin: 0 0 6px; font-size: 1.7rem; }
+.puerta-sub {
+  margin: 0 0 16px;
+  font-size: .95rem;
+  color: var(--apagado, #777);
+  line-height: 1.5;
+}
+.puerta-caja .campo { width: 100%; text-align: left; }
+.puerta-caja .btn { width: 100%; }
+.puerta-pie {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: var(--apagado, #777);
+  line-height: 1.5;
+}
+
+/* La clase de vocabulario: la palabra grande, la traducción debajo y un botón
+   ancho para oírla. El botón es grande a propósito — la idea es que se toque
+   varias veces mientras se repite en voz alta. */
+
+.vocab-clase { list-style: none; margin: 14px 0 0; padding: 0; }
+.vocab-clase li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  margin-bottom: 8px;
+}
+.vocab-clase li:last-child { margin-bottom: 0; }
+.vocab-oir {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: none;
+  background: var(--fondo2);
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vocab-oir:active { background: var(--azul, #1cb0f6); }
+.vocab-icono { font-size: 22px; line-height: 1; }
+.vocab-en { display: block; font-size: 1.1rem; font-weight: 800; line-height: 1.3; }
+.vocab-es { display: block; font-size: .95rem; color: var(--tinta); line-height: 1.35; }
+.vocab-nota { display: block; font-size: 12px; color: var(--apagado, #777); margin-top: 2px; }
+
+/* Los pares de sonido de la clase de pronunciación. Las dos palabras del par
+   ocupan lo mismo y están pegadas: la comparación es el contenido, así que
+   tienen que poder oírse una detrás de otra sin mover el dedo. */
+
+.par-sonido {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  margin-top: 10px;
+}
+.par-botones { display: flex; align-items: center; gap: 8px; }
+.par-vs { flex: none; font-size: 13px; color: var(--apagado, #777); }
+.par-palabra {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 12px;
+  background: var(--fondo2);
+  cursor: pointer;
+}
+.par-palabra:active { background: var(--azul, #1cb0f6); color: #fff; }
+.par-en { font-size: 1.15rem; font-weight: 800; }
+.par-simbolo { font-size: 13px; color: var(--apagado, #777); }
+.par-oir { font-size: 15px; }
+.par-tip { margin-top: 9px; font-size: 13px; line-height: 1.45; color: var(--tinta); }

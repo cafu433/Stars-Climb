@@ -87,6 +87,19 @@
       // aplicación funciona igual con el avance sólo en este aparato.
       ultimaSync: 0,
       ultimoErrorSync: "",
+      // Dos cosas distintas, y conviene que lo sean (ver js/puerta.js).
+      //
+      // 'entroComo' es el último correo usado en este aparato, y sirve sólo
+      // para dejarlo escrito en la pantalla de entrada. Si al caducar la
+      // sesión se borrara también esto, habría que teclear el correo entero
+      // cada vez, que es justo la molestia que no hace falta.
+      //
+      // 'aparatoAbierto' es el permiso de usar la aplicación sin volver a
+      // escribir la contraseña. Se quita al salir y cuando el servidor dice
+      // que la sesión ya no vale — pero NO cuando el servidor no contesta:
+      // quedarse sin señal no debería dejarte fuera.
+      entroComo: "",
+      aparatoAbierto: false,
     },
   };
 

@@ -27,7 +27,7 @@
   const RAIZ = "/api";
   const ESPERA = 20000; // el plan gratuito de Render duerme y tarda en despertar
 
-  let sesion = { conectado: false, email: null, comprobada: false };
+  let sesion = { conectado: false, email: null, comprobada: false, respondio: false };
   let sincronizando = false;
   let ultimoIntento = 0;
 
@@ -71,12 +71,24 @@
     return pedir("/yo")
       .then(function (r) { return r.ok ? r.json() : { conectado: false }; })
       .then(function (d) {
-        sesion = { conectado: !!d.conectado, email: d.email || null, comprobada: true };
+        sesion = {
+          conectado: !!d.conectado, email: d.email || null,
+          comprobada: true, respondio: true,
+        };
+        if (sesion.conectado && sesion.email) {
+          ajustes().entroComo = sesion.email;
+          ajustes().aparatoAbierto = true;
+          A().guardar();
+        }
         return sesion;
       })
       .catch(function () {
-        // Sin conexión no se sabe; se asume lo último que se supo y se sigue.
+        /* Sin conexión no se sabe. Se marca 'respondio: false' porque la
+         * diferencia importa: que el servidor diga "no hay sesión" es motivo
+         * para pedir la clave, pero que no conteste no lo es — si no, quedarse
+         * sin señal te dejaría fuera de tu propia aplicación. */
         sesion.comprobada = true;
+        sesion.respondio = false;
         return sesion;
       });
   }
@@ -88,7 +100,10 @@
         return r.json();
       })
       .then(function (d) {
-        sesion = { conectado: true, email: d.email, comprobada: true };
+        sesion = { conectado: true, email: d.email, comprobada: true, respondio: true };
+        ajustes().entroComo = d.email;
+        ajustes().aparatoAbierto = true;
+        A().guardar();
         // Recién creada la cuenta, lo primero es subir lo que ya se practicó.
         return sincronizar().then(function () { return sesion; });
       });
@@ -101,7 +116,10 @@
         return r.json();
       })
       .then(function (d) {
-        sesion = { conectado: true, email: d.email, comprobada: true };
+        sesion = { conectado: true, email: d.email, comprobada: true, respondio: true };
+        ajustes().entroComo = d.email;
+        ajustes().aparatoAbierto = true;
+        A().guardar();
         return sincronizar().then(function () { return sesion; });
       });
   }
@@ -112,8 +130,12 @@
     return pedir("/salir", { metodo: "POST" })
       .catch(function () { /* si el servidor no contesta, se sale igual */ })
       .then(function () {
-        sesion = { conectado: false, email: null, comprobada: true };
+        sesion = { conectado: false, email: null, comprobada: true, respondio: true };
         ajustes().ultimaSync = 0;
+        // Salir cierra la puerta: en este aparato habrá que volver a entrar.
+        // El correo se deja escrito, que no es ningún secreto y ahorra tener
+        // que teclearlo otra vez.
+        ajustes().aparatoAbierto = false;
         A().guardar();
         return sesion;
       });
@@ -203,6 +225,10 @@
       conectado: sesion.conectado,
       email: sesion.email,
       comprobada: sesion.comprobada,
+      respondio: sesion.respondio,
+      // Lo último que se supo en este aparato, aunque ahora no haya señal.
+      entroComo: a.entroComo || "",
+      aparatoAbierto: !!a.aparatoAbierto,
       sincronizando: sincronizando,
       ultima: a.ultimaSync || 0,
       ultimoError: a.ultimoErrorSync || "",

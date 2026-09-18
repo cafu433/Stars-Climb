@@ -8,6 +8,20 @@
   function arrancar() {
     APP.pantallas.aplicarTema();
     APP.pantallas.enganchar();
+
+    /* La puerta. A la aplicación se entra con correo y contraseña.
+     *
+     * Si en este aparato no se ha entrado nunca, se pide antes de dibujar
+     * nada: no tiene sentido pintar la aplicación entera para taparla medio
+     * segundo después. Si ya se entró alguna vez, se abre de inmediato y la
+     * sesión se comprueba por detrás — así abrir es instantáneo y sigue
+     * funcionando sin señal. */
+    if (APP.puerta.hayQuePedir()) {
+      APP.puerta.pintar();
+      registrarServicio();
+      return;
+    }
+
     APP.pantallas.pintar();
 
     /* Al volver a la aplicación después de un rato hay que redibujar: las vidas
@@ -15,6 +29,7 @@
      * pantalla que quedó abierta puede estar mostrando datos de ayer. */
     document.addEventListener("visibilitychange", function () {
       if (document.hidden || document.getElementById("leccion")) return;
+      if (!APP.puerta.abierta()) return;
       APP.pantallas.pintar();
       // Al volver puede que se haya practicado en otro aparato.
       APP.cuenta.sincronizarSiCorresponde(5).then(function (r) {
@@ -27,7 +42,9 @@
      * se dibujó con lo local y tiene que poder usarse aunque el servidor esté
      * dormido o no haya señal. */
     APP.cuenta.arrancar().then(function (r) {
-      if (r.ok) APP.pantallas.pintar();
+      // Si el servidor contestó que la sesión ya no vale, se cierra la puerta.
+      APP.puerta.revisarTrasArrancar();
+      if (r.ok && APP.puerta.abierta()) APP.pantallas.pintar();
     });
 
     registrarServicio();

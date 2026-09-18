@@ -487,12 +487,27 @@
     { en: "I need to see a doctor.", es: "Necesito ver a un doctor.", skill: "cuerpo", nivel: 2 },
 
     // --- Rutina, presente, calendario y clima ---
+    /* El presente simple es de las primeras unidades, así que estas van en
+     * nivel 1 y 2. Estaban casi todas en 3 y no hay nada avanzado en ellas:
+     * son justo las frases que la lección "Verbos del día" tiene que
+     * practicar, y con la etiqueta puesta en 3 quedaban fuera de su propio
+     * nivel. Se añaden además unas cuantas más cortas: con seis frases en
+     * total, una lección de doce ejercicios repetía todo el rato. */
+    { en: "I work here.", es: "Trabajo acá.", skill: "presente", nivel: 1 },
+    { en: "She works here.", es: "Ella trabaja acá.", skill: "presente", nivel: 1 },
+    { en: "I live in Santiago.", es: "Vivo en Santiago.", skill: "presente", nivel: 1 },
+    { en: "He speaks English.", es: "Él habla inglés.", skill: "presente", nivel: 1 },
+    { en: "We start at nine.", es: "Empezamos a las nueve.", skill: "presente", nivel: 1 },
+    { en: "They live near the office.", es: "Ellos viven cerca de la oficina.", skill: "presente", nivel: 1 },
+    { en: "I do not work on Sundays.", es: "No trabajo los domingos.", skill: "presente", nivel: 2 },
+    { en: "She does not drink coffee.", es: "Ella no toma café.", skill: "presente", nivel: 2 },
+    { en: "Does he work here?", es: "¿Él trabaja acá?", skill: "presente", nivel: 2 },
     { en: "I get up at six every day.", es: "Me levanto a las seis todos los días.", skill: "presente", nivel: 2 },
-    { en: "She works from home on Fridays.", es: "Ella trabaja desde la casa los viernes.", skill: "presente", nivel: 3 },
-    { en: "He never drinks coffee at night.", es: "Él nunca toma café en la noche.", skill: "presente", nivel: 3 },
-    { en: "We usually have lunch at one.", es: "Normalmente almorzamos a la una.", skill: "presente", nivel: 3 },
+    { en: "She works from home on Fridays.", es: "Ella trabaja desde la casa los viernes.", skill: "presente", nivel: 2 },
+    { en: "He never drinks coffee at night.", es: "Él nunca toma café en la noche.", skill: "presente", nivel: 2 },
+    { en: "We usually have lunch at one.", es: "Normalmente almorzamos a la una.", skill: "presente", nivel: 2 },
     { en: "Do you work on Saturdays?", es: "¿Trabajas los sábados?", skill: "presente", nivel: 2 },
-    { en: "I am reading a book right now.", es: "Estoy leyendo un libro ahora mismo.", skill: "presente", nivel: 3 },
+    { en: "I am reading a book right now.", es: "Estoy leyendo un libro ahora mismo.", skill: "presente", nivel: 2 },
     { en: "My birthday is in September.", es: "Mi cumpleaños es en septiembre.", skill: "calendario", nivel: 2 },
     { en: "The office is closed on Sunday.", es: "La oficina está cerrada el domingo.", skill: "calendario", nivel: 2 },
     { en: "It is raining again.", es: "Está lloviendo de nuevo.", skill: "clima", nivel: 1 },
@@ -710,12 +725,51 @@
     { en: "be about to", es: "estar a punto de", icon: "⏱️", note: "" },
   ];
 
+  /* Los saludos, palabra por palabra.
+   *
+   * Faltaban, y era el agujero más grave del curso: la primera lección se
+   * llama "Hola" y no tenía ni una palabra suelta que enseñar, sólo frases
+   * completas como "Have a lovely evening". Se le preguntaba a alguien que
+   * recién sabe que "hi" es hola cómo se dice "que tengas una linda tarde".
+   *
+   * Van ordenadas como se usan: primero saludar, después despedirse, después
+   * lo mínimo para ser educada. Son las primeras palabras inglesas que se
+   * aprenden en la vida, así que tienen que estar completas y solas.
+   */
+  const GREETINGS = [
+    { en: "hi", es: "hola", icon: "👋", note: "la más corriente, con cualquiera" },
+    { en: "hello", es: "hola", icon: "👋", note: "un punto más formal que 'hi'" },
+    { en: "good morning", es: "buenos días", icon: "🌅", note: "hasta el mediodía" },
+    { en: "good afternoon", es: "buenas tardes", icon: "☀️", note: "desde el mediodía" },
+    { en: "good evening", es: "buenas tardes, buenas noches", icon: "🌆", note: "al llegar, de noche" },
+    { en: "good night", es: "buenas noches", icon: "🌙", note: "sólo al despedirse o al ir a dormir" },
+    { en: "goodbye", es: "adiós", icon: "🚪", note: "" },
+    { en: "bye", es: "chao", icon: "🚪", note: "la forma corta, entre conocidos" },
+    { en: "see you", es: "nos vemos", icon: "👀", note: "" },
+    { en: "please", es: "por favor", icon: "🙏", note: "" },
+    { en: "thank you", es: "gracias", icon: "💐", note: "" },
+    { en: "thanks", es: "gracias", icon: "💐", note: "más corto e informal" },
+    { en: "you are welcome", es: "de nada", icon: "🤗", note: "" },
+    { en: "yes", es: "sí", icon: "✅", note: "" },
+    { en: "no", es: "no", icon: "🚫", note: "" },
+    { en: "sorry", es: "perdón, lo siento", icon: "😔", note: "" },
+    { en: "excuse me", es: "disculpe", icon: "🖐️", note: "para pedir paso o llamar la atención" },
+    { en: "how are you?", es: "¿cómo estás?", icon: "🙂", note: "" },
+    { en: "I am fine", es: "estoy bien", icon: "👍", note: "" },
+    { en: "and you?", es: "¿y tú?", icon: "↩️", note: "para devolver la pregunta" },
+    { en: "my name is", es: "me llamo", icon: "🏷️", note: "" },
+    { en: "what is your name?", es: "¿cómo te llamas?", icon: "❓", note: "" },
+    { en: "nice to meet you", es: "un gusto conocerte", icon: "🤝", note: "al presentarse" },
+    { en: "see you tomorrow", es: "nos vemos mañana", icon: "📆", note: "" },
+  ];
+
   /* Un "tema" agrupa palabras que se enseñan y se repasan juntas.
    * El id es la llave que usan el currículo y el repaso espaciado, así que no
    * hay que cambiarlo una vez publicado: es lo que amarra el progreso guardado
    * en el teléfono con el contenido.
    */
   const TEMAS = [
+    { id: "saludos", label: "Saludos", icon: "👋", items: GREETINGS },
     { id: "numeros", label: "Números", icon: "🔢", items: NUMBERS },
     { id: "colores", label: "Colores", icon: "🎨", items: COLORS },
     { id: "objetos", label: "Cosas", icon: "📦", items: OBJECTS },
@@ -784,6 +838,10 @@
         id: llave(tema.id, item.en),
         tipo: "palabra",
         skill: tema.id,
+        // Una palabra suelta es siempre lo más fácil de un tema, así que va
+        // en el nivel 1. Esto permite que una lección de principiante pida
+        // sólo nivel 1 y se quede con las palabras, sin frases largas.
+        nivel: 1,
         en: item.en,
         es: item.es,
         icon: item.icon || null,

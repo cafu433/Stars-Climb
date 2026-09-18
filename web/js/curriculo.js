@@ -82,9 +82,12 @@
       color: "#58cc02",
       icon: "👋",
       lecciones: [
-        { id: "u1l1", titulo: "Hola", skills: ["saludos"], tipos: RECONOCER, n: 10 },
-        { id: "u1l2", titulo: "Números", skills: ["numeros"], tipos: RECONOCER, n: 12 },
-        { id: "u1l3", titulo: "Colores", skills: ["colores"], tipos: RECONOCER, n: 12 },
+        /* nivelMax: 1 en las tres primeras. Son las lecciones con las que se
+         * empieza de cero, y el mismo tema contiene frases de nivel 2 que no
+         * tienen nada que hacer ahí. */
+        { id: "u1l1", titulo: "Hola", skills: ["saludos"], tipos: RECONOCER, nivelMax: 1, n: 10 },
+        { id: "u1l2", titulo: "Números", skills: ["numeros"], tipos: RECONOCER, nivelMax: 1, n: 12 },
+        { id: "u1l3", titulo: "Colores", skills: ["colores"], tipos: RECONOCER, nivelMax: 1, n: 12 },
         { id: "u1l4", titulo: "Preséntate", skills: ["saludos"], tipos: PRODUCIR, n: 12 },
         { id: "u1l5", titulo: "Todo junto", skills: ["saludos", "numeros", "colores"], tipos: COMPLETO, n: 14 },
       ],

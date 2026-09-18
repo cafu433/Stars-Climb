@@ -15,7 +15,7 @@
  * versión vieja y concluye que la actualización no llegó. Por eso app.js
  * escucha 'controllerchange' y recarga sola. Las dos piezas van juntas.
  */
-const VERSION = "stars-v9";
+const VERSION = "stars-v10";
 
 const CASCO = [
   ".",
@@ -44,6 +44,7 @@ const CASCO = [
   "js/examen.js",
   "js/tutor.js",
   "js/cuenta.js",
+  "js/puerta.js",
   "js/leccion.js",
   "js/pantallas.js",
   "js/app.js",

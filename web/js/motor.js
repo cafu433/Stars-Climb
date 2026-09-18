@@ -74,11 +74,41 @@
     return salida;
   }
 
-  function candidatas(skills, filtro) {
+  /* El tope de nivel por defecto, según dónde esté la lección en el curso.
+   *
+   * Sin esto había lecciones básicas hechas casi enteras de material
+   * avanzado: "Verbos del día" es de las primeras unidades y nueve de sus
+   * quince tarjetas eran de nivel 3. El tema era el correcto y el nivel,
+   * absurdo — el mismo error que hacía preguntar "Have a lovely evening" en
+   * la lección "Hola".
+   *
+   * Una lección puede pedir un tope más bajo con nivelMax (las tres primeras
+   * lo ponen en 1). Lo que no puede es subirlo por encima del de su nivel.
+   */
+  const TOPE_POR_NIVEL = { basico: 2, intermedio: 3 };
+
+  function topeDe(leccion) {
+    const porNivel = TOPE_POR_NIVEL[leccion.nivel];
+    if (leccion.nivelMax && porNivel) return Math.min(leccion.nivelMax, porNivel);
+    return leccion.nivelMax || porNivel || 0;
+  }
+
+  function candidatas(skills, filtro, nivelMax) {
     let out = [];
     skills.forEach(function (s) {
       out = out.concat(D().porSkill(s));
     });
+    /* Un tope de nivel para que una lección de principiante no alcance las
+     * frases largas del mismo tema. Sin esto, la primera lección del curso
+     * podía preguntar "Have a lovely evening" a alguien que recién aprendió
+     * que "hi" es hola: el tema era el correcto y el nivel, absurdo.
+     *
+     * Si con el tope no queda casi nada, se suelta: más vale una lección un
+     * poco difícil que una lección de tres ejercicios. */
+    if (nivelMax) {
+      const cabe = out.filter(function (t) { return (t.nivel || 2) <= nivelMax; });
+      if (cabe.length >= 8) out = cabe;
+    }
     if (filtro) out = out.filter(filtro);
     return out;
   }
@@ -479,11 +509,11 @@
   /* Tandas de una o varias reglas, repartidas. Cuando la lección pide dos
    * reglas se alternan en vez de darse una detrás de otra: mezcladas obligan a
    * decidir cuál aplica, que es la mitad de la dificultad real. */
-  function sesionReglas(leccion) {
+  function sesionReglas(leccion, modo) {
     const ids = leccion.reglas || [];
     if (!ids.length || !APP.reglas) return [];
     const porRegla = ids.map(function (id) {
-      return APP.reglas.tanda(id, Math.ceil((leccion.n || 12) / ids.length) + 2);
+      return APP.reglas.tanda(id, Math.ceil((leccion.n || 12) / ids.length) + 2, modo);
     });
     const out = [];
     let i = 0;
@@ -499,30 +529,192 @@
     return out;
   }
 
+  /* ---------------- Las etapas de una lección ----------------
+   *
+   * Una lección no es una tanda de ejercicios mezclados: es una secuencia.
+   * Primero ver, después reconocer entre opciones, después escribirlo sin
+   * opciones, y al final decirlo en voz alta.
+   *
+   * El orden no es decorativo. Reconocer la respuesta entre cuatro es mucho
+   * más fácil que producirla, y quedarse sólo en reconocer da la sensación de
+   * saber algo que después no sale cuando hace falta. Cada etapa pide un poco
+   * más que la anterior sobre el mismo material, que es lo que hace que se
+   * fije en vez de pasar de largo.
+   */
+  const ETAPAS = [
+    { id: "ver", nombre: "Ver", sub: "Mira cómo es" },
+    { id: "reconocer", nombre: "Reconocer", sub: "Elige la correcta" },
+    { id: "escribir", nombre: "Escribir", sub: "Ahora sin opciones" },
+    { id: "escuchar", nombre: "Escuchar", sub: "Sin mirar la palabra" },
+    { id: "decir", nombre: "Decir", sub: "En voz alta" },
+  ];
+
+  function etapaDe(ej) {
+    if (ej.tipo === "pares") return "ver";
+    if (ej.tipo === "habla") return "decir";
+    if (ej.tipo === "escucha-elige") return "escuchar";
+    if (ej.tipo === "escribe") return ej.autoAudio ? "escuchar" : "escribir";
+    if (ej.tipo === "arma" || ej.tipo === "regla-escribe") return "escribir";
+    return "reconocer";
+  }
+
+  function ordenarPorEtapa(ejercicios) {
+    const orden = {};
+    ETAPAS.forEach(function (e, i) { orden[e.id] = i; });
+    return ejercicios
+      .map(function (e) { return Object.assign({}, e, { etapa: e.etapa || etapaDe(e) }); })
+      .sort(function (a, b) { return orden[a.etapa] - orden[b.etapa]; });
+  }
+
+  /* Completa las etapas que falten.
+   *
+   * Una lección declara qué tipos de ejercicio quiere, y muchas sólo pedían
+   * reconocer. Eso hacía lecciones cortas en las que nunca se escribía ni se
+   * decía nada: se avanzaba rápido y se olvidaba igual de rápido. Ahora lo
+   * declarado marca el énfasis, pero las cinco etapas se recorren siempre.
+   *
+   * Las de escuchar y decir dependen del aparato: si no hay voz o micrófono,
+   * el constructor devuelve null y esa etapa simplemente no aparece. No se
+   * fuerza nada que no se pueda contestar.
+   */
+  function completarEtapas(leccion, ejercicios) {
+    // El mismo tope de nivel que usó sesionNormal. Sin repetirlo aquí, las
+    // etapas que se rellenan al final volvían a sacar frases de nivel 2 y se
+    // colaban justo por la puerta de atrás.
+    const banco = candidatas(leccion.skills, null, topeDe(leccion));
+    if (!banco.length) return ejercicios;
+
+    const hay = {};
+    ejercicios.forEach(function (e) { hay[e.etapa || etapaDe(e)] = (hay[e.etapa || etapaDe(e)] || 0) + 1; });
+
+    const receta = [
+      { etapa: "ver", tipos: ["pares"], cuantos: 1 },
+      { etapa: "reconocer", tipos: ["elige-en", "elige-es"], cuantos: 4 },
+      { etapa: "escribir", tipos: ["escribe-en", "arma-en"], cuantos: 4 },
+      { etapa: "escuchar", tipos: ["dictado", "escucha-elige"], cuantos: 3 },
+      { etapa: "decir", tipos: ["habla"], cuantos: 2 },
+    ];
+
+    const extra = [];
+    receta.forEach(function (r) {
+      let faltan = r.cuantos - (hay[r.etapa] || 0);
+      let vueltas = 0;
+      let i = 0;
+      // Dentro de una etapa no se repite tarjeta; entre etapas SÍ, y a
+      // propósito: la misma palabra se ve, se reconoce, se escribe y se dice.
+      // Repetirla en otra etapa es la idea, no un descuido.
+      //
+      // Comprobarlo contra la lección entera era justo lo que impedía que las
+      // etapas nuevas existieran: con nueve palabras y diez ejercicios ya
+      // hechos, todo lo que se generaba salía "repetido" y la lección se
+      // quedaba sin escribir ni decir, en silencio.
+      const deEstaEtapa = [];
+      while (faltan > 0 && vueltas < 40) {
+        vueltas++;
+        const tipo = r.tipos[i % r.tipos.length];
+        i++;
+        const fuente = tipo === "arma-en"
+          ? banco.filter(function (t) { return t.tipo === "frase"; })
+          : banco;
+        if (!fuente.length) break;
+        const t = sortear(fuente, 1)[0];
+        const ej = tipo === "pares" ? ejercicioPares(banco) : generar(tipo, t, banco);
+        if (!ej) continue;
+        if (repetido(deEstaEtapa, ej)) continue;
+        deEstaEtapa.push(ej);
+        extra.push(ej);
+        faltan--;
+      }
+    });
+    return ejercicios.concat(extra);
+  }
+
+  /* Oír y decir la frase de una regla.
+   *
+   * Una lección de gramática se quedaba en leer y escribir: se aprendía la
+   * regla sin haberla dicho nunca en voz alta, y después no sale al hablar.
+   * Se arman con la frase ya resuelta —"She is my sister"— que es una oración
+   * de verdad y no una palabra suelta.
+   *
+   * Sólo con las reglas cuya frase tiene contexto: "___" resuelto es una
+   * palabra, y hacer repetir "it" a secas no enseña a hablar.
+   */
+  function vozDeRegla(ejercicios, cuantosOir, cuantosDecir) {
+    if (!APP.reglas) return [];
+    const frases = [];
+    const vistas = {};
+    ejercicios.forEach(function (e) {
+      if (!e.regla || !e.frase) return;
+      const pelada = String(e.frase).replace(/_{3}/g, "").replace(/[\s…·.?]/g, "");
+      if (!pelada) return;                       // era sólo el hueco
+      const hecha = APP.reglas.resuelta(e);
+      if (vistas[hecha] || hecha.split(/\s+/).length < 3) return;
+      vistas[hecha] = true;
+      frases.push({ en: hecha, es: e.es || "" });
+    });
+
+    const out = [];
+    const mezcladas = revolver(frases);
+    if (APP.audio.hayVoz()) {
+      mezcladas.slice(0, cuantosOir).forEach(function (f) {
+        out.push({
+          tipo: "escribe",
+          enunciado: "Escucha y escribe lo que oyes",
+          audio: f.en,
+          autoAudio: true,
+          respuesta: f.en,
+          traduccion: f.es,
+          etapa: "escuchar",
+        });
+      });
+    }
+    if (APP.audio.hayMicrofono()) {
+      mezcladas.slice(cuantosOir, cuantosOir + cuantosDecir).forEach(function (f) {
+        out.push({
+          tipo: "habla",
+          enunciado: "Dilo en voz alta",
+          prompt: f.en,
+          traduccion: f.es,
+          audio: f.en,
+          respuesta: f.en,
+          promptEn: true,
+          etapa: "decir",
+        });
+      });
+    }
+    return out;
+  }
+
   function sesionLeccion(leccion) {
     if (leccion.texto) return sesionLectura(leccion);
 
-    // Una lección puede pedir reglas, ejercicios normales, o las dos cosas.
-    if (!leccion.reglas) return sesionNormal(leccion);
-
     const total = leccion.n || 12;
-    if (!leccion.tipos) return sesionReglas(leccion);
 
-    /* Con las dos cosas se reparte: dos tercios de regla y un tercio de uso.
-     * El reparto tiene que hacerse ANTES de generar, no recortando después:
-     * pedir las dos tandas completas y luego cortar a 'n' dejaba fuera todos
-     * los ejercicios normales, porque los de regla iban primero y ya llenaban
-     * el cupo. La lección quedaba siendo sólo drill sin que nada lo avisara. */
-    const cuantasReglas = Math.max(1, Math.round(total * 0.65));
-    const deReglas = sesionReglas(Object.assign({}, leccion, { n: cuantasReglas }));
+    // Una lección puede pedir reglas, ejercicios normales, o las dos cosas.
+    if (!leccion.reglas) {
+      return ordenarPorEtapa(completarEtapas(leccion, sesionNormal(leccion)));
+    }
+
+    /* Una lección de regla se hace en dos etapas sobre el mismo material:
+     * primero eligiendo entre opciones y después escribiéndolo sin ellas.
+     * Antes sólo daba una de las dos —la que tocara según el dominio— y la de
+     * escribir no llegaba hasta ocho aciertos después, en otra sesión. */
+    const mitad = Math.max(3, Math.round(total * 0.45));
+    const eligiendo = sesionReglas(Object.assign({}, leccion, { n: mitad }), "elegir");
+    const escribiendo = sesionReglas(Object.assign({}, leccion, { n: mitad }), "escribir");
+    const deReglas = eligiendo.concat(escribiendo);
+    const conVoz = deReglas.concat(vozDeRegla(eligiendo.concat(escribiendo), 3, 2));
+
+    if (!leccion.tipos) return ordenarPorEtapa(conVoz);
+
     const resto = sesionNormal(
       Object.assign({}, leccion, { n: Math.max(2, total - deReglas.length) })
     );
-    return deReglas.concat(resto).slice(0, total);
+    return ordenarPorEtapa(completarEtapas(leccion, conVoz.concat(resto)));
   }
 
   function sesionNormal(leccion) {
-    const banco = candidatas(leccion.skills);
+    const banco = candidatas(leccion.skills, null, topeDe(leccion));
     const palabras = banco.filter(function (t) { return t.tipo === "palabra"; });
     const frases = banco.filter(function (t) { return t.tipo === "frase"; });
 
@@ -638,6 +830,8 @@
   APP.motor = {
     sesionLeccion: sesionLeccion,
     sesionLectura: sesionLectura,
+    ETAPAS: ETAPAS,
+    etapaDe: etapaDe,
     sesionReglas: sesionReglas,
     sesionRepaso: sesionRepaso,
     sesionErrores: sesionErrores,

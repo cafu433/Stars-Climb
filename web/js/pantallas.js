@@ -675,8 +675,14 @@
   function abrirLeccion(id) {
     const l = APP.curriculo.leccion(id);
     if (!l) return;
-    claseAntesDe(l, function () {
-      const ejercicios = filtrar(APP.motor.sesionLeccion(l));
+
+    /* Los ejercicios se arman ANTES de la clase, aunque la clase vaya primero.
+     * Así la clase de vocabulario puede enseñar exactamente las palabras que
+     * se van a preguntar, en el mismo orden, en vez de una lista aparte que
+     * con el tiempo se descuadraría del contenido real de la lección. */
+    const ejercicios = filtrar(APP.motor.sesionLeccion(l));
+
+    claseAntesDe(l, ejercicios, function () {
       APP.leccion.iniciar({
         ejercicios: ejercicios,
         titulo: l.titulo,
@@ -1117,6 +1123,135 @@
     });
   }
 
+  /* Preguntar una duda sin salir de lo que estabas haciendo.
+   *
+   * El tutor ya existía en su pantalla, pero las dudas no aparecen ahí: llegan
+   * en mitad de un ejercicio —"¿por qué acá es 'is' y no 'are'?"— y si hay que
+   * salir, buscar la pantalla y volver, no se pregunta: se sigue sin entender,
+   * que es la forma de arrastrar un error durante meses.
+   *
+   * Se le manda el ejercicio como contexto, así que puede responder sobre la
+   * frase que se tiene delante y no en abstracto.
+   */
+  function preguntarTutor(contexto) {
+    const hilo = [];
+    let esperando = false;
+
+    APP.tutor.estado().then(function (e) {
+      if (!e.disponible) return hojaTutorNoDisponible(e.motivo);
+      abrir();
+    }).catch(function () { hojaTutorNoDisponible("sin_internet"); });
+
+    function abrir() {
+      const velo = hoja(cuerpo(), function (acc, b, v) {
+        if (acc === "preg-enviar" || acc === "preg-sugerida") {
+          const campo = d.$("#preg-campo", v);
+          const texto = acc === "preg-sugerida"
+            ? b.getAttribute("data-t")
+            : (campo ? campo.value : "");
+          if (campo) campo.value = "";
+          enviar(texto, v);
+        }
+      });
+      velo.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" && ev.target.id === "preg-campo") {
+          ev.preventDefault();
+          const t = ev.target.value;
+          ev.target.value = "";
+          enviar(t, velo);
+        }
+      });
+    }
+
+    function cuerpo() {
+      let out = '<h2>Pregúntame</h2>';
+      if (contexto) {
+        out += '<div class="preg-contexto"><span class="mini apagado">Sobre esto</span>' +
+          "<div>" + d.esc(contexto) + "</div></div>";
+      }
+      out += '<div class="chat" id="preg-chat">' + burbujas() + "</div>";
+
+      if (!hilo.length) {
+        const sugeridas = contexto
+          ? ["¿Por qué es así?", "Dame otro ejemplo", "¿Cuándo se usa esto?"]
+          : ["¿Cuándo uso do y cuándo does?", "¿Cuál es la diferencia entre in, on y at?"];
+        out += '<div class="preg-sugeridas">' +
+          sugeridas.map(function (t) {
+            return '<button class="btn hueco chico" data-accion="preg-sugerida" data-t="' +
+              d.esc(t) + '">' + d.esc(t) + "</button>";
+          }).join("") + "</div>";
+      }
+
+      out +=
+        '<div class="chat-barra">' +
+        '<input class="campo" id="preg-campo" type="text" placeholder="Escribe tu duda en español…" ' +
+        'autocomplete="off"' + (esperando ? " disabled" : "") + ">" +
+        '<button class="btn redondo" data-accion="preg-enviar" aria-label="Enviar"' +
+        (esperando ? " disabled" : "") + ">➤</button></div>" +
+        '<div style="height:8px"></div>' +
+        '<button class="btn hueco" data-accion="cerrar-hoja">Volver al ejercicio</button>';
+      return out;
+    }
+
+    function burbujas() {
+      return hilo.map(function (t) {
+        if (t.papel === "yo") return '<div class="burbuja-chat mia">' + d.esc(t.texto) + "</div>";
+        return '<div class="burbuja-chat suya"><div class="texto">' + d.esc(t.texto) + "</div></div>";
+      }).join("") + (esperando ? '<div class="burbuja-chat suya pensando">pensando…</div>' : "");
+    }
+
+    function repintar(velo) {
+      const c = d.$("#preg-chat", velo);
+      if (c) { c.innerHTML = burbujas(); c.scrollTop = c.scrollHeight; }
+      const campo = d.$("#preg-campo", velo);
+      if (campo) campo.disabled = esperando;
+      const sug = d.$(".preg-sugeridas", velo);
+      if (sug && hilo.length) sug.remove();
+    }
+
+    function enviar(texto, velo) {
+      const t = String(texto || "").trim();
+      if (!t || esperando) return;
+      hilo.push({ papel: "yo", texto: t });
+      esperando = true;
+      repintar(velo);
+
+      /* La pregunta va en español y con el ejercicio delante. Se le pide
+       * explícitamente que responda en español: acá no se está practicando
+       * inglés, se está resolviendo una duda, y una explicación que no se
+       * entiende no resuelve nada. */
+      const conContexto = (contexto ? "Estoy con este ejercicio: “" + contexto + "”. " : "") +
+        "Pregunta (respóndeme en español, breve y claro): " + t;
+
+      APP.tutor.mandar(conContexto).then(function (r) {
+        esperando = false;
+        hilo.push({ papel: "tutor", texto: r.respuesta });
+        repintar(velo);
+      }).catch(function (err) {
+        esperando = false;
+        hilo.push({ papel: "tutor", texto: "No pude responder: " + (err.message || "prueba otra vez") });
+        repintar(velo);
+      });
+    }
+  }
+
+  function hojaTutorNoDisponible(motivo) {
+    const textos = {
+      sin_internet: ["Sin internet", "Preguntar es lo único que necesita conexión. Todo lo demás funciona igual."],
+      sin_cuenta: ["Necesitas una cuenta", "Para preguntar hace falta entrar, porque hay un tope de preguntas al día por persona."],
+      sin_clave: ["Falta configurarlo", "Preguntarle a la IA es la única parte que no es gratis. Se activa poniendo una clave de Anthropic en Render; está explicado en Practicar → Conversar."],
+    };
+    const t = textos[motivo] || textos.sin_clave;
+    hoja(
+      "<h2>" + d.esc(t[0]) + "</h2>" +
+      '<p class="chico apagado">' + d.esc(t[1]) + "</p>" +
+      (motivo === "sin_cuenta"
+        ? '<button class="btn" data-accion="crear-cuenta">Crear una cuenta</button><div style="height:8px"></div>'
+        : "") +
+      '<button class="btn hueco" data-accion="cerrar-hoja">Volver</button>'
+    );
+  }
+
   /* ---------------- Exámenes y nivelación ---------------- */
 
   function verNivel(id) {
@@ -1212,10 +1347,238 @@
     );
   }
 
+  /* ---------------- El cuerpo de una clase ----------------
+   *
+   * Una explicación de corrido obliga a leerla entera para saber si contestaba
+   * la duda que uno traía. Por eso una clase va por partes numeradas y en
+   * orden — primero el caso simple, después el raro — y cada parte trae sus
+   * ejemplos pegados abajo, no todos juntos al final.
+   *
+   * Y cada clase termina con un "por qué". Saber que el inglés casi no marca
+   * la persona en el verbo explica de una vez el pronombre obligatorio, el
+   * "do" de las preguntas y la -s de he/she/it: tres reglas sueltas que pasan
+   * a ser una sola. Una regla que se entiende no hay que memorizarla.
+   */
+  function parrafos(texto) {
+    return String(texto).split("\n\n").map(function (parrafo) {
+      return "<p>" + permitirNegrita(parrafo) + "</p>";
+    }).join("");
+  }
+
+  function ejemplosDeClase(lista) {
+    return '<ul class="clase-ejs">' + lista.map(function (e) {
+      return "<li>" +
+        '<button class="icono-btn" data-accion="audio" data-texto="' + d.esc(e.en) + '">🔊</button>' +
+        '<span class="crece"><span class="ej-en">' + tocablesEn(e.en) + "</span>" +
+        '<span class="ej-es">' + d.esc(e.es) + "</span></span></li>";
+    }).join("") + "</ul>";
+  }
+
+  function cuerpoDeClase(t) {
+    let h = "";
+
+    /* La idea en una línea, arriba del todo. Si alguien sólo lee esto, ya se
+     * lleva lo que importa; el resto es para cuando no basta. */
+    if (t.idea) h += '<div class="clase-idea">' + permitirNegrita(t.idea) + "</div>";
+
+    if (t.pasos && t.pasos.length) {
+      h += '<ol class="clase-pasos">' + t.pasos.map(function (paso) {
+        return '<li class="clase-paso">' +
+          '<div class="paso-tit">' + d.esc(paso.titulo) + "</div>" +
+          '<div class="paso-texto">' + parrafos(paso.texto) + "</div>" +
+          (paso.ejemplos && paso.ejemplos.length ? ejemplosDeClase(paso.ejemplos) : "") +
+          "</li>";
+      }).join("") + "</ol>";
+    } else if (t.explicacion) {
+      h += '<div class="explicacion">' + parrafos(t.explicacion) + "</div>";
+    }
+
+    if (t.tabla) h += tablaTocable(t.tabla);
+
+    if (t.porque) {
+      h += '<div class="clase-porque">' +
+        '<div class="tit">¿Por qué es así?</div>' +
+        '<div class="cuerpo">' + parrafos(t.porque) + "</div></div>";
+    }
+    return h;
+  }
+
+  /* La clase de una lección de pares mínimos ("ship" / "sheep").
+   *
+   * Estos ejercicios ya traían su explicación, pero llegaba DESPUÉS de fallar,
+   * y en pronunciación eso no sirve: si nunca has oído la diferencia entre las
+   * dos, la primera vez es una moneda al aire y la segunda también.
+   *
+   * Así que primero se oyen las dos, una al lado de la otra y con el botón
+   * para repetirlas, y recién después se pregunta cuál era.
+   */
+  function paresDeSonido(ejercicios) {
+    const vistos = {};
+    const out = [];
+    (ejercicios || []).forEach(function (ej) {
+      const ops = (ej.opciones || []).filter(function (o) { return o.simbolo; });
+      if (ops.length !== 2) return;
+      const llave = ops.map(function (o) { return o.texto; }).sort().join("|");
+      if (vistos[llave]) return;
+      vistos[llave] = true;
+      out.push({ a: ops[0], b: ops[1], tip: ej.explicacion || "" });
+    });
+    return out;
+  }
+
+  function claseDeSonidos(titulo, pares, seguir) {
+    const tandas = [];
+    for (let i = 0; i < pares.length; i += 3) tandas.push(pares.slice(i, i + 3));
+    if (!tandas.length) return seguir();
+
+    let i = 0;
+    function mostrar() {
+      const tanda = tandas[i];
+      const ultima = i === tandas.length - 1;
+      hoja(
+        '<div class="ficha-cabecera"><span class="emo-grande">👂</span>' +
+        "<h2>" + d.esc(titulo) + "</h2></div>" +
+        '<div class="clase-idea">Oye las dos antes de que te pregunten. ' +
+        "Tócalas varias veces hasta notar en qué se diferencian.</div>" +
+        tanda.map(function (p) {
+          return '<div class="par-sonido">' +
+            '<div class="par-botones">' +
+            botonSonido(p.a) + '<span class="par-vs">y</span>' + botonSonido(p.b) +
+            "</div>" +
+            (p.tip ? '<div class="par-tip">' + d.esc(p.tip) + "</div>" : "") +
+            "</div>";
+        }).join("") +
+        '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">' +
+        (ultima ? "Listo, a practicar" : "Siguiente") + "</button>" +
+        (tandas.length > 1
+          ? '<div class="mini apagado centro" style="margin-top:8px">' +
+            (i + 1) + " de " + tandas.length + "</div>"
+          : ""),
+        function (acc, b, velo) {
+          if (acc !== "clase-seguir") return;
+          velo.remove();
+          i++;
+          if (i < tandas.length) mostrar();
+          else seguir();
+        }
+      );
+    }
+    mostrar();
+  }
+
+  function botonSonido(o) {
+    return '<button class="par-palabra" data-accion="audio" data-texto="' + d.esc(o.texto) + '">' +
+      '<span class="par-en">' + d.esc(o.texto) + "</span>" +
+      '<span class="par-simbolo">/' + d.esc(o.simbolo) + "/</span>" +
+      '<span class="par-oir">🔊</span></button>';
+  }
+
+  /* La clase de una lección de vocabulario.
+   *
+   * Hasta ahora una lección que sólo practicaba palabras —"Hola", "Números",
+   * "Colores"— no enseñaba nada: empezaba preguntando. Es el peor orden
+   * posible, porque convierte la primera lección del curso en un examen de
+   * algo que nadie ha visto. Adivinar no enseña; sólo deja la sensación de
+   * ir atrasada desde el primer minuto.
+   *
+   * Así que ahora se muestran antes las palabras que la lección va a
+   * preguntar. Las mismas exactamente: se sacan de los ejercicios ya
+   * generados, no de una lista aparte que pudiera quedar descuadrada.
+   *
+   * Y van de a pocas por pantalla. Veinte palabras de golpe se leen como un
+   * diccionario y no se queda ninguna; de a seis se pueden mirar, oír y
+   * repetir antes de pasar.
+   */
+  const POR_TANDA = 6;
+
+  function loQueEnseña(ejercicios) {
+    /* Lo que la lección va a preguntar, sin repetir y en el orden en que se
+     * va a preguntar: así la clase y la práctica van a la par.
+     *
+     * Los ejercicios guardan el id, no la tarjeta, y el de unir pares guarda
+     * varios de golpe; hay que resolverlos contra el banco. */
+    const vistos = {};
+    const out = [];
+    function meter(id) {
+      if (!id || vistos[id]) return;
+      const t = APP.datos.porId(id);
+      if (!t || !t.en || !t.es) return;
+      vistos[id] = true;
+      out.push(t);
+    }
+    (ejercicios || []).forEach(function (ej) {
+      meter(ej.tarjetaId);
+      (ej.tarjetas || []).forEach(meter);
+    });
+
+    /* Las palabras sueltas primero y las frases después, y dentro de cada
+     * grupo en el orden en que están escritas en el banco.
+     *
+     * El orden en que van a preguntarse lo decide el azar, y eso sirve para
+     * practicar pero no para enseñar: una clase de principiante que empieza
+     * por "you are welcome" y dice "hi" en la tercera pantalla está contando
+     * la historia al revés. Los bancos están escritos en orden de dificultad
+     * —saludar, despedirse, ser educada; cero, uno, dos— así que respetarlo
+     * es gratis y ordena la clase sola. */
+    const orden = {};
+    APP.datos.TARJETAS.forEach(function (t, i) { orden[t.id] = i; });
+    function porBanco(a, b) { return (orden[a.id] || 0) - (orden[b.id] || 0); }
+
+    const palabras = out.filter(function (t) { return t.tipo !== "frase"; }).sort(porBanco);
+    const frases = out.filter(function (t) { return t.tipo === "frase"; }).sort(porBanco);
+    return palabras.concat(frases);
+  }
+
+  function claseDeVocabulario(titulo, tarjetas, seguir) {
+    const tandas = [];
+    for (let i = 0; i < tarjetas.length; i += POR_TANDA) {
+      tandas.push(tarjetas.slice(i, i + POR_TANDA));
+    }
+    if (!tandas.length) return seguir();
+
+    let i = 0;
+    function mostrar() {
+      const tanda = tandas[i];
+      const ultima = i === tandas.length - 1;
+      hoja(
+        '<div class="ficha-cabecera"><span class="emo-grande">📖</span>' +
+        "<h2>" + d.esc(titulo) + "</h2></div>" +
+        '<div class="clase-idea">Esto es lo que vas a practicar. Tócalas para ' +
+        "oírlas, y repite en voz alta antes de seguir.</div>" +
+        '<ul class="vocab-clase">' +
+        tanda.map(function (t) {
+          return "<li>" +
+            '<button class="vocab-oir" data-accion="audio" data-texto="' + d.esc(t.en) + '">' +
+            (t.icon ? '<span class="vocab-icono">' + d.esc(t.icon) + "</span>" : "🔊") +
+            "</button>" +
+            '<span class="crece"><span class="vocab-en">' + d.esc(t.en) + "</span>" +
+            '<span class="vocab-es">' + d.esc(t.es) + "</span>" +
+            (t.nota ? '<span class="vocab-nota">' + d.esc(t.nota) + "</span>" : "") +
+            "</span></li>";
+        }).join("") +
+        "</ul>" +
+        '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">' +
+        (ultima ? "Listo, a practicar" : "Siguiente") + "</button>" +
+        (tandas.length > 1
+          ? '<div class="mini apagado centro" style="margin-top:8px">' +
+            (i + 1) + " de " + tandas.length + "</div>"
+          : ""),
+        function (acc, b, velo) {
+          if (acc !== "clase-seguir") return;
+          velo.remove();
+          i++;
+          if (i < tandas.length) mostrar();
+          else seguir();
+        }
+      );
+    }
+    mostrar();
+  }
+
   /* La clase que abre una unidad. Se enseña la regla antes de practicarla: un
    * adulto entiende "he lleva -s" en diez segundos leyéndolo, y en veinte
    * ejercicios adivinándolo. */
-  function claseAntesDe(l, seguir) {
+  function claseAntesDe(l, ejercicios, seguir) {
     const temas = (l.clase || []).map(function (id) { return APP.datosGramatica.tema(id); })
       .filter(Boolean);
 
@@ -1230,7 +1593,18 @@
         return;
       }
     }
-    if (!temas.length) return seguir();
+    /* Ni tema de gramática ni regla: es una lección de vocabulario. Antes se
+     * iba directo a preguntar; ahora se enseñan primero las palabras. */
+    if (!temas.length) {
+      const tarjetas = loQueEnseña(ejercicios);
+      if (tarjetas.length >= 3) return claseDeVocabulario(l.titulo, tarjetas, seguir);
+      // Una lección de pares mínimos no tiene vocabulario que enseñar, pero sí
+      // sonidos que oír antes de que los pregunten.
+      const pares = paresDeSonido(ejercicios);
+      if (pares.length) return claseDeSonidos(l.titulo, pares, seguir);
+      if (tarjetas.length) return claseDeVocabulario(l.titulo, tarjetas, seguir);
+      return seguir();
+    }
 
     let i = 0;
     function mostrar() {
@@ -1239,11 +1613,14 @@
       hoja(
         '<div class="ficha-cabecera"><span class="emo-grande">' + t.emo + "</span>" +
         "<h2>" + d.esc(t.titulo) + "</h2></div>" +
-        '<div class="explicacion">' + permitirNegrita(t.explicacion) + "</div>" +
-        (t.tabla ? tablaTocable(t.tabla) : "") +
+        cuerpoDeClase(t) +
         '<div class="trampa"><div class="mal">✗ ' + tocablesEn(t.trampa.mal) + "</div>" +
         '<div class="bien">✓ ' + tocablesEn(t.trampa.bien) + "</div>" +
-        '<div class="mini" style="margin-top:6px">' + d.esc(t.trampa.porque) + "</div></div>" +
+        '<div class="mini" style="margin-top:6px">' + permitirNegrita(t.trampa.porque) + "</div></div>" +
+        (t.ejemplos && t.ejemplos.length
+          ? '<div class="clase-mas"><div class="tit">Más ejemplos</div>' +
+            ejemplosDeClase(t.ejemplos) + "</div>"
+          : "") +
         '<div class="mini apagado centro" style="margin-top:10px">' +
         "Toca cualquier palabra en inglés para ver qué significa.</div>" +
         '<button class="btn" style="margin-top:14px" data-accion="clase-seguir">' +
@@ -1355,26 +1732,9 @@
       '<button class="icono-btn" data-accion="cerrar-hoja">✕</button></div>' +
       '<p class="chico apagado">' + d.esc(t.resumen) + "</p>" +
 
-      // La explicación viene con párrafos y con algo de negrita; se parte por
-      // los saltos de línea y se deja pasar sólo <b>, que es lo único que usa.
-      '<div class="explica">' +
-      t.explicacion.split("\n\n").map(function (parrafo) {
-        return "<p>" + permitirNegrita(parrafo) + "</p>";
-      }).join("") +
-      "</div>" +
-
-      (t.tabla
-        ? '<div class="envoltorio"><table class="gram-tabla">' +
-          "<thead><tr>" +
-          t.tabla.cabecera.map(function (c) { return "<th>" + d.esc(c) + "</th>"; }).join("") +
-          "</tr></thead><tbody>" +
-          t.tabla.filas.map(function (f) {
-            return "<tr>" + f.map(function (c, i) {
-              return "<td" + (i === 0 ? ' class="clave"' : "") + ">" + d.esc(c) + "</td>";
-            }).join("") + "</tr>";
-          }).join("") +
-          "</tbody></table></div>"
-        : "") +
+      // El mismo cuerpo que ve la clase dentro de la lección: la idea, los
+      // pasos en orden, la tabla y el porqué. Una sola forma de explicar.
+      '<div class="explica">' + cuerpoDeClase(t) + "</div>" +
 
       '<div class="trampa">' +
       '<div class="tit">⚠️ El error típico</div>' +
@@ -2208,6 +2568,7 @@
   APP.pantallas = {
     pintar: pintar,
     palabra: palabra,
+    preguntarTutor: preguntarTutor,
     enganchar: enganchar,
     aplicarTema: aplicarTema,
     irA: function (t) { tab = t; pintar(); },
